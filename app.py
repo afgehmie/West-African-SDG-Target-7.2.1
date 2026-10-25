@@ -203,7 +203,6 @@ else:
             scope="africa",
             labels={"DisplayValue": selected_series},
         )
-        # Frameless, borderless map layout
         fig_anim_map.update_geos(
             center=dict(lat=9.5, lon=-3.5),
             projection_scale=3.8,
@@ -258,7 +257,6 @@ else:
             scope="africa",
             labels={"DisplayValue": selected_series},
         )
-        # Frameless, borderless map layout
         fig_map.update_geos(
             center=dict(lat=9.5, lon=-3.5),
             projection_scale=3.8,
@@ -276,7 +274,6 @@ else:
       with col_bar:
         st.markdown(f"### 📊 2. Country Rankings ({selected_year})")
 
-        # Sorted lowest to highest bar chart
         fig_bar = px.bar(
             df_year_sorted,
             x="Value",
@@ -329,7 +326,6 @@ else:
       pivot_df = df_filtered.pivot_table(
           index="geoAreaName", columns="Year", values="Value"
       )
-      # Sort pivot rows alphabetically or by average performance
       pivot_df["MeanVal"] = pivot_df.mean(axis=1)
       pivot_df = pivot_df.sort_values(by="MeanVal", ascending=True).drop(
           columns=["MeanVal"]
@@ -343,7 +339,6 @@ else:
             y=pivot_df.index,
             color_continuous_scale=custom_color_scale,
             text_auto=".1f",
-            px_ortho=False,
         )
         fig_heatmap.update_layout(
             height=360,

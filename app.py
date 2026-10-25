@@ -1,22 +1,24 @@
 import time
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import streamlit as st
 
 st.set_page_config(
-    page_title="West Africa Energy Transition Dashboard",
+    page_title="West Africa Energy Transition Explorer",
     page_icon="⚡",
     layout="wide",
 )
 
 st.title("⚡ West Africa Energy Transition Dashboard (2015–2024)")
 st.markdown(
-    "Comprehensive regional analysis tracking **Total Renewables**, **Modern"
-    " Renewables**, and **Traditional Biomass** across West African Nations."
+    "Interactive regional dashboard tracking **TFEC (PJ)**, **Total"
+    " Renewables**, **Modern Renewables**, and **Traditional Biomass** across all"
+    " 15 ECOWAS Member States."
 )
 
 
-# Load ECOWAS Excel dataset
+# Load local ECOWAS Excel File
 @st.cache_data
 def load_ecowas_data():
   filename = "ECOWAS DATA 22.xlsx"
@@ -32,10 +34,11 @@ df_excel = load_ecowas_data()
 
 if df_excel.empty:
   st.warning(
-      "Please ensure 'ECOWAS DATA 22.xlsx' and 'openpyxl' are in your repository."
+      "Please ensure 'ECOWAS DATA 22.xlsx' and 'openpyxl' are uploaded in your"
+      " repository."
   )
 else:
-  # Melt wide-format year columns into tidy format
+  # Melt wide-format years (2015..2024) into a tidy format
   year_cols = [
       c for c in df_excel.columns if str(c).isdigit() and int(c) >= 2015
   ]
@@ -51,9 +54,12 @@ else:
   df_melted = df_melted.rename(
       columns={"Country": "geoAreaName", "Type": "seriesDescription"}
   )
+
+  # Standardize series descriptions
+  df_melted["seriesDescription"] = df_melted["seriesDescription"].str.strip()
   df_filtered_all = df_melted.dropna(subset=["Value", "Year"])
 
-  # Map Country Names to ISO-3 codes for accurate regional mapping
+  # Comprehensive ISO-3 Code mapping for all West African countries
   iso_mapping = {
       "Benin": "BEN",
       "Burkina Faso": "BFA",
@@ -76,151 +82,170 @@ else:
   # Sidebar Controls
   st.sidebar.header("⚙️ Dashboard Controls")
 
-  series_options = [
-      "Total Renewables",
-      "Modern renewables",
-      "Traditional Biomass",
-      "TFEC(PJ)",
-  ]
-  available_series = [
-      s for s in series_options if s in df_filtered_all["seriesDescription"].unique()
-  ]
-  if not available_series:
-    available_series = df_filtered_all["seriesDescription"].unique().tolist()
-
+  # Full Metric Selection
+  all_types = df_filtered_all["seriesDescription"].unique().tolist()
   selected_series = st.sidebar.selectbox(
-      "Select Energy Category:", options=available_series
+      "Select Data Category / Indicator:",
+      options=all_types,
+      index=0,
   )
 
   df_filtered = df_filtered_all[
       df_filtered_all["seriesDescription"] == selected_series
-  ]
+  ].sort_values(by=["Year", "geoAreaName"])
   available_years = sorted(df_filtered["Year"].dropna().unique().astype(int))
 
   if available_years:
     st.sidebar.markdown("---")
-    st.sidebar.subheader("▶️ Automated Year Playback")
-
-    if "is_playing" not in st.session_state:
-      st.session_state.is_playing = False
-    if "current_year_idx" not in st.session_state:
-      st.session_state.current_year_idx = 0
-
-    col_b1, col_b2 = st.sidebar.columns(2)
-    if col_b1.button("▶️ Play Loop"):
-      st.session_state.is_playing = True
-    if col_b2.button("⏸️ Pause"):
-      st.session_state.is_playing = False
-
-    playback_speed = st.sidebar.slider(
-        "Transition Speed (seconds)", 0.5, 3.0, 1.2
-    )
-
-    if st.session_state.is_playing:
-      time.sleep(playback_speed)
-      st.session_state.current_year_idx = (
-          st.session_state.current_year_idx + 1
-      ) % len(available_years)
-      st.rerun()
+    st.sidebar.subheader("▶️ Playback & Year Selector")
 
     selected_year = st.sidebar.select_slider(
         "Select Year Manually:",
         options=available_years,
-        value=available_years[st.session_state.current_year_idx],
+        value=available_years[0],
     )
 
-    # --- REGIONAL METRICS CALCULATION ---
-    df_year = df_filtered[df_filtered["Year"] == selected_year]
-    regional_avg = df_year["Value"].mean()
+    auto_play = st.sidebar.checkbox(
+        "▶️ Auto-Play Smooth Transition Across Years", value=False
+    )
 
-    prev_year = selected_year - 1
-    df_prev = df_filtered[df_filtered["Year"] == prev_year]
-    prev_regional_avg = (
-        df_prev["Value"].mean() if not df_prev.empty else regional_avg
-    )
-    avg_change = regional_avg - prev_regional_avg
-
-    # --- TOP METRIC BANNER ---
-    st.markdown("---")
-    m1, m2, m3 = st.columns(3)
-    m1.metric(
-        label=f"🌍 Regional Average ({selected_year})",
-        value=f"{regional_avg:.2f}",
-        delta=f"{avg_change:+.2f} vs {prev_year}"
-        if prev_year in available_years
-        else "Baseline",
-    )
-    m2.metric(
-        label="📊 Active Indicator",
-        value=selected_series,
-        delta=f"{len(df_year)} Countries Reporting",
-    )
-    m3.metric(
-        label="⏱️ Playback Status",
-        value="Playing 🔄" if st.session_state.is_playing else "Paused ⏸️",
-        delta=f"Year {selected_year}",
-    )
-    st.markdown("---")
-
-    # Custom Color Scale: Cream (Lowest) -> Green (Average) -> Blue (Highest)
+    # Performance Color Scale: Cream (Least) -> Green (Average) -> Blue (Best)
     custom_color_scale = [
         [0.0, "#FFFDD0"],  # Cream
         [0.5, "#2ECC71"],  # Green
         [1.0, "#1B4F72"],  # Blue
     ]
 
-    # --- ALL FOUR MAIN DASHBOARD METRICS ON ONE SCREEN ---
-    st.subheader(
-        f"🎯 Complete Regional Overview for {selected_series} ({selected_year})"
-    )
+    # --- TOP METRIC CARDS ---
+    df_curr = df_filtered[df_filtered["Year"] == selected_year]
+    regional_avg = df_curr["Value"].mean() if not df_curr.empty else 0.0
 
+    prev_year = selected_year - 1
+    df_prev = df_filtered[df_filtered["Year"] == prev_year]
+    prev_avg = df_prev["Value"].mean() if not df_prev.empty else regional_avg
+    delta_avg = regional_avg - prev_avg
+
+    st.markdown("---")
+    c1, c2, c3 = st.columns(3)
+    c1.metric(
+        label=f"🌍 Regional Mean ({selected_year})",
+        value=f"{regional_avg:.2f}",
+        delta=f"{delta_avg:+.2f} vs {prev_year}"
+        if prev_year in available_years
+        else "Baseline",
+    )
+    c2.metric(
+        label="📊 Active Category",
+        value=selected_series,
+        delta=f"{len(df_curr)} Countries Reporting",
+    )
+    c3.metric(
+        label="📅 Timeframe Covered",
+        value=f"{min(available_years)} – {max(available_years)}",
+        delta="10 Years Tracked",
+    )
+    st.markdown("---")
+
+    # --- ALL 4 MAIN DASHBOARD SECTIONS DISPLAYED SIMULTANEOUSLY ---
     col_map, col_bar = st.columns(2)
 
-    with col_map:
-      st.markdown("### 🗺️ 1. Country-Level Geographic Map")
-      if not df_year.empty:
-        fig_map = px.choropleth(
-            df_year,
+    if auto_play:
+      # Plotly Native Animated Map (Smooth transition without screen blinking)
+      with col_map:
+        st.markdown("### 🗺️ 1. Regional Map (Smooth Auto-Transition)")
+        fig_anim_map = px.choropleth(
+            df_filtered,
             locations="ISO3",
             color="Value",
             hover_name="geoAreaName",
+            animation_frame="Year",
             color_continuous_scale=custom_color_scale,
-            labels={"Value": "Value"},
             scope="africa",
+            labels={"Value": selected_series},
         )
-        fig_map.update_geos(
+        fig_anim_map.update_geos(
             fitbounds="locations", visible=True, showcountries=True
         )
-        fig_map.update_layout(
-            height=400, margin={"r": 0, "t": 0, "l": 0, "b": 0}
+        fig_anim_map.update_layout(
+            height=450, margin={"r": 0, "t": 20, "l": 0, "b": 0}
         )
-        st.plotly_chart(fig_map, use_container_width=True)
+        st.plotly_chart(fig_anim_map, use_container_width=True)
 
-    with col_bar:
-      st.markdown("### 📊 2. Country Rankings Bar Chart")
-      if not df_year.empty:
-        fig_bar = px.bar(
-            df_year.sort_values(by="Value", ascending=True),
+      with col_bar:
+        st.markdown("### 📊 2. Country Rankings (Smooth Auto-Transition)")
+        fig_anim_bar = px.bar(
+            df_filtered,
             x="Value",
             y="geoAreaName",
-            orientation="h",
             color="Value",
+            animation_frame="Year",
+            orientation="h",
             color_continuous_scale=custom_color_scale,
             text="Value",
-            labels={"Value": "Value", "geoAreaName": "Country"},
+            labels={"Value": selected_series, "geoAreaName": "Country"},
         )
-        fig_bar.update_traces(texttemplate="%{text:.1f}", textposition="outside")
-        fig_bar.update_layout(
-            height=400, showlegend=False, margin={"r": 0, "t": 0, "l": 0, "b": 0}
+        fig_anim_bar.update_traces(
+            texttemplate="%{text:.1f}", textposition="outside"
         )
-        st.plotly_chart(fig_bar, use_container_width=True)
+        fig_anim_bar.update_layout(
+            height=450,
+            showlegend=False,
+            margin={"r": 0, "t": 20, "l": 0, "b": 0},
+        )
+        st.plotly_chart(fig_anim_bar, use_container_width=True)
+
+    else:
+      # Static Single-Year View
+      with col_map:
+        st.markdown(f"### 🗺️ 1. Regional Map ({selected_year})")
+        if not df_curr.empty:
+          fig_map = px.choropleth(
+              df_curr,
+              locations="ISO3",
+              color="Value",
+              hover_name="geoAreaName",
+              color_continuous_scale=custom_color_scale,
+              scope="africa",
+              labels={"Value": selected_series},
+          )
+          fig_map.update_geos(
+              fitbounds="locations", visible=True, showcountries=True
+          )
+          fig_map.update_layout(
+              height=450, margin={"r": 0, "t": 20, "l": 0, "b": 0}
+          )
+          st.plotly_chart(fig_map, use_container_width=True)
+
+      with col_bar:
+        st.markdown(f"### 📊 2. Country Rankings ({selected_year})")
+        if not df_curr.empty:
+          fig_bar = px.bar(
+              df_curr.sort_values(by="Value", ascending=True),
+              x="Value",
+              y="geoAreaName",
+              orientation="h",
+              color="Value",
+              color_continuous_scale=custom_color_scale,
+              text="Value",
+              labels={"Value": selected_series, "geoAreaName": "Country"},
+          )
+          fig_bar.update_traces(
+              texttemplate="%{text:.1f}", textposition="outside"
+          )
+          fig_bar.update_layout(
+              height=450,
+              showlegend=False,
+              margin={"r": 0, "t": 20, "l": 0, "b": 0},
+          )
+          st.plotly_chart(fig_bar, use_container_width=True)
 
     st.markdown("---")
 
+    # Lower Row: Regional Trajectory & Transition Matrix Heatmap
     col_trend, col_heat = st.columns(2)
 
     with col_trend:
-      st.markdown("### 📈 3. Regional Average Annual Trend")
+      st.markdown("### 📈 3. Regional Average Trend (2015–2024)")
       regional_trend = (
           df_filtered.groupby("Year")["Value"].mean().reset_index()
       )
@@ -229,19 +254,18 @@ else:
           x="Year",
           y="Value",
           markers=True,
-          labels={"Value": "Regional Mean Value", "Year": "Year"},
-          title="Regional Trajectory (2015–2024)",
+          labels={"Value": "Regional Mean", "Year": "Year"},
       )
       fig_trend.update_traces(
-          line_color="#2980B9", line_width=3, marker_size=8
+          line_color="#1B4F72", line_width=3, marker_size=8
       )
       fig_trend.update_layout(
-          height=400, margin={"r": 0, "t": 40, "l": 0, "b": 0}
+          height=400, margin={"r": 0, "t": 20, "l": 0, "b": 0}
       )
       st.plotly_chart(fig_trend, use_container_width=True)
 
     with col_heat:
-      st.markdown("### 📉 4. Annual Transition Matrix Heatmap")
+      st.markdown("### 📉 4. Transition Matrix Heatmap (All Years)")
       pivot_df = df_filtered.pivot_table(
           index="geoAreaName", columns="Year", values="Value"
       )
@@ -256,6 +280,6 @@ else:
             aspect="auto",
         )
         fig_heatmap.update_layout(
-            height=400, margin={"r": 0, "t": 40, "l": 0, "b": 0}
+            height=400, margin={"r": 0, "t": 20, "l": 0, "b": 0}
         )
         st.plotly_chart(fig_heatmap, use_container_width=True)

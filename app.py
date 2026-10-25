@@ -1,6 +1,5 @@
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 import streamlit as st
 
 st.set_page_config(
@@ -136,9 +135,9 @@ else:
         lambda x: f"{x:.1f}" if pd.notnull(x) else "N/A"
     )
 
-    # Sort descending for bar charts (highest to lowest)
+    # Sort ascending for bar charts (lowest to highest)
     df_year_sorted = df_year_full.sort_values(
-        by="Value", ascending=False, na_position="last"
+        by="Value", ascending=True, na_position="first"
     )
 
     # --- TOP METRIC BANNER ---
@@ -204,21 +203,23 @@ else:
             scope="africa",
             labels={"DisplayValue": selected_series},
         )
-        # Perfectly fitted projection scale for all 15 countries
+        # Frameless, borderless map layout
         fig_anim_map.update_geos(
             center=dict(lat=9.5, lon=-3.5),
             projection_scale=3.8,
             visible=False,
-            showcountries=True,
-            countrycolor="#CCCCCC",
+            showcountries=False,
         )
         fig_anim_map.update_layout(
-            height=360, margin={"r": 0, "t": 10, "l": 0, "b": 0}
+            height=360,
+            margin={"r": 0, "t": 10, "l": 0, "b": 0},
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
         )
         st.plotly_chart(fig_anim_map, use_container_width=True)
 
       with col_bar:
-        st.markdown("### 📊 2. Country Rankings (Highest to Lowest)")
+        st.markdown("### 📊 2. Country Rankings (Lowest to Highest)")
         fig_anim_bar = px.bar(
             df_anim,
             x="Value",
@@ -235,7 +236,7 @@ else:
             height=360,
             showlegend=False,
             margin={"r": 0, "t": 10, "l": 0, "b": 0},
-            yaxis={"categoryorder": "total descending"},
+            yaxis={"categoryorder": "total ascending"},
         )
         st.plotly_chart(fig_anim_bar, use_container_width=True)
 
@@ -257,22 +258,25 @@ else:
             scope="africa",
             labels={"DisplayValue": selected_series},
         )
+        # Frameless, borderless map layout
         fig_map.update_geos(
             center=dict(lat=9.5, lon=-3.5),
             projection_scale=3.8,
             visible=False,
-            showcountries=True,
-            countrycolor="#CCCCCC",
+            showcountries=False,
         )
         fig_map.update_layout(
-            height=360, margin={"r": 0, "t": 10, "l": 0, "b": 0}
+            height=360,
+            margin={"r": 0, "t": 10, "l": 0, "b": 0},
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
         )
         st.plotly_chart(fig_map, use_container_width=True)
 
       with col_bar:
         st.markdown(f"### 📊 2. Country Rankings ({selected_year})")
 
-        # Create bar chart sorted highest to lowest
+        # Sorted lowest to highest bar chart
         fig_bar = px.bar(
             df_year_sorted,
             x="Value",
@@ -284,34 +288,14 @@ else:
             labels={"Value": selected_series, "geoAreaName": "Country"},
         )
         fig_bar.update_traces(textposition="outside")
-
-        # Add segment dividing lines after every 5 countries (dividing into 3 tiers)
-        fig_bar.add_shape(
-            type="line",
-            x0=0,
-            x1=1,
-            y0=4.5,
-            y1=4.5,
-            xref="paper",
-            yref="y",
-            line=dict(color="red", width=2, dash="dash"),
-        )
-        fig_bar.add_shape(
-            type="line",
-            x0=0,
-            x1=1,
-            y0=9.5,
-            y1=9.5,
-            xref="paper",
-            yref="y",
-            line=dict(color="red", width=2, dash="dash"),
-        )
-
         fig_bar.update_layout(
             height=360,
             showlegend=False,
             margin={"r": 0, "t": 10, "l": 0, "b": 0},
-            yaxis={"categoryorder": "array", "categoryarray": df_year_sorted["geoAreaName"].tolist()[::-1]},
+            yaxis={
+                "categoryorder": "array",
+                "categoryarray": df_year_sorted["geoAreaName"].tolist(),
+            },
         )
         st.plotly_chart(fig_bar, use_container_width=True)
 
@@ -345,6 +329,12 @@ else:
       pivot_df = df_filtered.pivot_table(
           index="geoAreaName", columns="Year", values="Value"
       )
+      # Sort pivot rows alphabetically or by average performance
+      pivot_df["MeanVal"] = pivot_df.mean(axis=1)
+      pivot_df = pivot_df.sort_values(by="MeanVal", ascending=True).drop(
+          columns=["MeanVal"]
+      )
+
       if not pivot_df.empty:
         fig_heatmap = px.imshow(
             pivot_df,
@@ -353,9 +343,12 @@ else:
             y=pivot_df.index,
             color_continuous_scale=custom_color_scale,
             text_auto=".1f",
-            aspect="auto",
+            px_ortho=False,
         )
         fig_heatmap.update_layout(
-            height=360, margin={"r": 0, "t": 10, "l": 0, "b": 0}
+            height=360,
+            margin={"r": 0, "t": 10, "l": 0, "b": 10},
+            xaxis_title="Year",
+            yaxis_title="Country",
         )
         st.plotly_chart(fig_heatmap, use_container_width=True)

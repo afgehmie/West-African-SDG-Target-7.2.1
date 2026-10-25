@@ -1,7 +1,5 @@
-import time
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 import streamlit as st
 
 st.set_page_config(
@@ -54,12 +52,27 @@ else:
   df_melted = df_melted.rename(
       columns={"Country": "geoAreaName", "Type": "seriesDescription"}
   )
-
-  # Standardize series descriptions
   df_melted["seriesDescription"] = df_melted["seriesDescription"].str.strip()
-  df_filtered_all = df_melted.dropna(subset=["Value", "Year"])
 
-  # Comprehensive ISO-3 Code mapping for all West African countries
+  # Complete list of 15 ECOWAS countries to ensure full grid representation
+  all_countries = [
+      "Benin",
+      "Burkina Faso",
+      "Cabo Verde",
+      "Côte d'Ivoire",
+      "Gambia",
+      "Ghana",
+      "Guinea",
+      "Guinea-Bissau",
+      "Liberia",
+      "Mali",
+      "Niger",
+      "Nigeria",
+      "Senegal",
+      "Sierra Leone",
+      "Togo",
+  ]
+
   iso_mapping = {
       "Benin": "BEN",
       "Burkina Faso": "BFA",
@@ -77,22 +90,16 @@ else:
       "Sierra Leone": "SLE",
       "Togo": "TGO",
   }
-  df_filtered_all["ISO3"] = df_filtered_all["geoAreaName"].map(iso_mapping)
 
   # Sidebar Controls
   st.sidebar.header("⚙️ Dashboard Controls")
 
-  # Full Metric Selection
-  all_types = df_filtered_all["seriesDescription"].unique().tolist()
+  all_types = df_melted["seriesDescription"].unique().tolist()
   selected_series = st.sidebar.selectbox(
-      "Select Data Category / Indicator:",
-      options=all_types,
-      index=0,
+      "Select Data Category / Indicator:", options=all_types, index=0
   )
 
-  df_filtered = df_filtered_all[
-      df_filtered_all["seriesDescription"] == selected_series
-  ].sort_values(by=["Year", "geoAreaName"])
+  df_filtered = df_melted[df_melted["seriesDescription"] == selected_series]
   available_years = sorted(df_filtered["Year"].dropna().unique().astype(int))
 
   if available_years:
@@ -109,20 +116,37 @@ else:
         "▶️ Auto-Play Smooth Transition Across Years", value=False
     )
 
-    # Performance Color Scale: Cream (Least) -> Green (Average) -> Blue (Best)
+    # Custom Color Scale: Cream (Least) -> Green (Average) -> Blue (Best)
     custom_color_scale = [
         [0.0, "#FFFDD0"],  # Cream
         [0.5, "#2ECC71"],  # Green
         [1.0, "#1B4F72"],  # Blue
     ]
 
-    # --- TOP METRIC CARDS ---
-    df_curr = df_filtered[df_filtered["Year"] == selected_year]
-    regional_avg = df_curr["Value"].mean() if not df_curr.empty else 0.0
+    # Rebuild complete grid for the selected year so missing data countries are explicitly included
+    df_year_raw = df_filtered[df_filtered["Year"] == selected_year]
+    df_year_full = pd.DataFrame(
+        {"geoAreaName": all_countries, "Year": selected_year}
+    )
+    df_year_full = df_year_full.merge(
+        df_year_raw[["geoAreaName", "Value", "seriesDescription"]],
+        on=["geoAreaName", "Year"],
+        how="left",
+    )
+    df_year_full["ISO3"] = df_year_full["geoAreaName"].map(iso_mapping)
+    df_year_full["DisplayValue"] = df_year_full["Value"].fillna(0)
+    df_year_full["TextLabel"] = df_year_full["Value"].apply(
+        lambda x: f"{x:.1f}" if pd.notnull(x) else "N/A"
+    )
+
+    # --- TOP METRIC BANNER ---
+    valid_vals = df_year_raw["Value"].dropna()
+    regional_avg = valid_vals.mean() if not valid_vals.empty else 0.0
 
     prev_year = selected_year - 1
-    df_prev = df_filtered[df_filtered["Year"] == prev_year]
-    prev_avg = df_prev["Value"].mean() if not df_prev.empty else regional_avg
+    df_prev_raw = df_filtered[df_filtered["Year"] == prev_year]
+    prev_valid = df_prev_raw["Value"].dropna()
+    prev_avg = prev_valid.mean() if not prev_valid.empty else regional_avg
     delta_avg = regional_avg - prev_avg
 
     st.markdown("---")
@@ -137,7 +161,7 @@ else:
     c2.metric(
         label="📊 Active Category",
         value=selected_series,
-        delta=f"{len(df_curr)} Countries Reporting",
+        delta=f"{len(valid_vals)} / {len(all_countries)} Reporting",
     )
     c3.metric(
         label="📅 Timeframe Covered",
@@ -146,102 +170,122 @@ else:
     )
     st.markdown("---")
 
-    # --- ALL 4 MAIN DASHBOARD SECTIONS DISPLAYED SIMULTANEOUSLY ---
+    # --- FOUR COMPACT DASHBOARD SECTIONS ON ONE SCREEN ---
     col_map, col_bar = st.columns(2)
 
     if auto_play:
-      # Plotly Native Animated Map (Smooth transition without screen blinking)
+      # Build full multi-year grid for smooth animation
+      anim_frames = []
+      for y in available_years:
+        df_y = pd.DataFrame({"geoAreaName": all_countries, "Year": y})
+        sub = df_filtered[df_filtered["Year"] == y]
+        df_y = df_y.merge(
+            sub[["geoAreaName", "Value"]], on="geoAreaName", how="left"
+        )
+        df_y["ISO3"] = df_y["geoAreaName"].map(iso_mapping)
+        df_y["DisplayValue"] = df_y["Value"].fillna(-1)  # Grey out missing
+        df_y["TextLabel"] = df_y["Value"].apply(
+            lambda x: f"{x:.1f}" if pd.notnull(x) else "N/A"
+        )
+        anim_frames.append(df_y)
+      df_anim = pd.concat(anim_frames)
+
       with col_map:
-        st.markdown("### 🗺️ 1. Regional Map (Smooth Auto-Transition)")
+        st.markdown("### 🗺️ 1. West Africa Regional Map")
         fig_anim_map = px.choropleth(
-            df_filtered,
+            df_anim,
             locations="ISO3",
-            color="Value",
+            color="DisplayValue",
             hover_name="geoAreaName",
             animation_frame="Year",
             color_continuous_scale=custom_color_scale,
+            range_color=[0, df_anim["Value"].max() if not df_anim.empty else 100],
             scope="africa",
-            labels={"Value": selected_series},
+            labels={"DisplayValue": selected_series},
         )
+        # Lock camera strictly onto West Africa
         fig_anim_map.update_geos(
-            fitbounds="locations", visible=True, showcountries=True
+            center=dict(lat=9.0, lon=-2.0),
+            projection_scale=4.5,
+            visible=False,
+            showcountries=True,
+            countrycolor="#CCCCCC",
         )
         fig_anim_map.update_layout(
-            height=450, margin={"r": 0, "t": 20, "l": 0, "b": 0}
+            height=360, margin={"r": 0, "t": 10, "l": 0, "b": 0}
         )
         st.plotly_chart(fig_anim_map, use_container_width=True)
 
       with col_bar:
-        st.markdown("### 📊 2. Country Rankings (Smooth Auto-Transition)")
+        st.markdown("### 📊 2. Country Rankings (N/A for Missing Data)")
         fig_anim_bar = px.bar(
-            df_filtered,
+            df_anim,
             x="Value",
             y="geoAreaName",
-            color="Value",
+            color="DisplayValue",
             animation_frame="Year",
             orientation="h",
             color_continuous_scale=custom_color_scale,
-            text="Value",
+            text="TextLabel",
             labels={"Value": selected_series, "geoAreaName": "Country"},
         )
-        fig_anim_bar.update_traces(
-            texttemplate="%{text:.1f}", textposition="outside"
-        )
+        fig_anim_bar.update_traces(textposition="outside")
         fig_anim_bar.update_layout(
-            height=450,
+            height=360,
             showlegend=False,
-            margin={"r": 0, "t": 20, "l": 0, "b": 0},
+            margin={"r": 0, "t": 10, "l": 0, "b": 0},
         )
         st.plotly_chart(fig_anim_bar, use_container_width=True)
 
     else:
-      # Static Single-Year View
       with col_map:
-        st.markdown(f"### 🗺️ 1. Regional Map ({selected_year})")
-        if not df_curr.empty:
-          fig_map = px.choropleth(
-              df_curr,
-              locations="ISO3",
-              color="Value",
-              hover_name="geoAreaName",
-              color_continuous_scale=custom_color_scale,
-              scope="africa",
-              labels={"Value": selected_series},
-          )
-          fig_map.update_geos(
-              fitbounds="locations", visible=True, showcountries=True
-          )
-          fig_map.update_layout(
-              height=450, margin={"r": 0, "t": 20, "l": 0, "b": 0}
-          )
-          st.plotly_chart(fig_map, use_container_width=True)
+        st.markdown(f"### 🗺️ 1. West Africa Regional Map ({selected_year})")
+        fig_map = px.choropleth(
+            df_year_full,
+            locations="ISO3",
+            color="DisplayValue",
+            hover_name="geoAreaName",
+            color_continuous_scale=custom_color_scale,
+            range_color=[0, df_year_full["Value"].max() if not df_year_full["Value"].dropna().empty else 100],
+            scope="africa",
+            labels={"DisplayValue": selected_series},
+        )
+        # Lock camera strictly onto West Africa (hiding other parts of Africa)
+        fig_map.update_geos(
+            center=dict(lat=9.0, lon=-2.0),
+            projection_scale=4.5,
+            visible=False,
+            showcountries=True,
+            countrycolor="#CCCCCC",
+        )
+        fig_map.update_layout(
+            height=360, margin={"r": 0, "t": 10, "l": 0, "b": 0}
+        )
+        st.plotly_chart(fig_map, use_container_width=True)
 
       with col_bar:
         st.markdown(f"### 📊 2. Country Rankings ({selected_year})")
-        if not df_curr.empty:
-          fig_bar = px.bar(
-              df_curr.sort_values(by="Value", ascending=True),
-              x="Value",
-              y="geoAreaName",
-              orientation="h",
-              color="Value",
-              color_continuous_scale=custom_color_scale,
-              text="Value",
-              labels={"Value": selected_series, "geoAreaName": "Country"},
-          )
-          fig_bar.update_traces(
-              texttemplate="%{text:.1f}", textposition="outside"
-          )
-          fig_bar.update_layout(
-              height=450,
-              showlegend=False,
-              margin={"r": 0, "t": 20, "l": 0, "b": 0},
-          )
-          st.plotly_chart(fig_bar, use_container_width=True)
+        fig_bar = px.bar(
+            df_year_full.sort_values(by="Value", ascending=True, na_position="first"),
+            x="Value",
+            y="geoAreaName",
+            orientation="h",
+            color="DisplayValue",
+            color_continuous_scale=custom_color_scale,
+            text="TextLabel",
+            labels={"Value": selected_series, "geoAreaName": "Country"},
+        )
+        fig_bar.update_traces(textposition="outside")
+        fig_bar.update_layout(
+            height=360,
+            showlegend=False,
+            margin={"r": 0, "t": 10, "l": 0, "b": 0},
+        )
+        st.plotly_chart(fig_bar, use_container_width=True)
 
     st.markdown("---")
 
-    # Lower Row: Regional Trajectory & Transition Matrix Heatmap
+    # Lower Row: Regional Trend & Transition Matrix Heatmap
     col_trend, col_heat = st.columns(2)
 
     with col_trend:
@@ -260,7 +304,7 @@ else:
           line_color="#1B4F72", line_width=3, marker_size=8
       )
       fig_trend.update_layout(
-          height=400, margin={"r": 0, "t": 20, "l": 0, "b": 0}
+          height=360, margin={"r": 0, "t": 10, "l": 0, "b": 0}
       )
       st.plotly_chart(fig_trend, use_container_width=True)
 
@@ -280,6 +324,6 @@ else:
             aspect="auto",
         )
         fig_heatmap.update_layout(
-            height=400, margin={"r": 0, "t": 20, "l": 0, "b": 0}
+            height=360, margin={"r": 0, "t": 10, "l": 0, "b": 0}
         )
         st.plotly_chart(fig_heatmap, use_container_width=True)

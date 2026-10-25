@@ -8,7 +8,10 @@ st.set_page_config(
     layout="wide",
 )
 
-st.title("⚡ West Africa Energy Transition Dashboard (2015–2024)")
+# Shrink title font so it fits neatly on one line
+st.markdown(
+    "### ⚡ West Africa Energy Transition Dashboard (2015–2024)"
+)
 st.markdown(
     "Interactive regional dashboard tracking **TFEC (PJ)**, **Total"
     " Renewables**, **Modern Renewables**, and **Traditional Biomass** across all"
@@ -54,7 +57,6 @@ else:
   )
   df_melted["seriesDescription"] = df_melted["seriesDescription"].str.strip()
 
-  # Complete list of 15 ECOWAS countries to ensure full grid representation
   all_countries = [
       "Benin",
       "Burkina Faso",
@@ -116,22 +118,19 @@ else:
         "▶️ Auto-Play Smooth Transition Across Years", value=False
     )
 
-    # Custom Color Scale: Cream (Least) -> Green (Average) -> Blue (Best)
     custom_color_scale = [
         [0.0, "#FFFDD0"],  # Cream
         [0.5, "#2ECC71"],  # Green
         [1.0, "#1B4F72"],  # Blue
     ]
 
-    # Rebuild complete grid for the selected year so missing data countries are explicitly included
+    # Robust dataframe join to prevent any KeyError
     df_year_raw = df_filtered[df_filtered["Year"] == selected_year]
     df_year_full = pd.DataFrame(
         {"geoAreaName": all_countries, "Year": selected_year}
     )
     df_year_full = df_year_full.merge(
-        df_year_raw[["geoAreaName", "Value", "seriesDescription"]],
-        on=["geoAreaName", "Year"],
-        how="left",
+        df_year_raw[["geoAreaName", "Value"]], on="geoAreaName", how="left"
     )
     df_year_full["ISO3"] = df_year_full["geoAreaName"].map(iso_mapping)
     df_year_full["DisplayValue"] = df_year_full["Value"].fillna(0)
@@ -174,7 +173,6 @@ else:
     col_map, col_bar = st.columns(2)
 
     if auto_play:
-      # Build full multi-year grid for smooth animation
       anim_frames = []
       for y in available_years:
         df_y = pd.DataFrame({"geoAreaName": all_countries, "Year": y})
@@ -183,7 +181,7 @@ else:
             sub[["geoAreaName", "Value"]], on="geoAreaName", how="left"
         )
         df_y["ISO3"] = df_y["geoAreaName"].map(iso_mapping)
-        df_y["DisplayValue"] = df_y["Value"].fillna(-1)  # Grey out missing
+        df_y["DisplayValue"] = df_y["Value"].fillna(-1)
         df_y["TextLabel"] = df_y["Value"].apply(
             lambda x: f"{x:.1f}" if pd.notnull(x) else "N/A"
         )
@@ -203,7 +201,6 @@ else:
             scope="africa",
             labels={"DisplayValue": selected_series},
         )
-        # Lock camera strictly onto West Africa
         fig_anim_map.update_geos(
             center=dict(lat=9.0, lon=-2.0),
             projection_scale=4.5,
@@ -250,7 +247,6 @@ else:
             scope="africa",
             labels={"DisplayValue": selected_series},
         )
-        # Lock camera strictly onto West Africa (hiding other parts of Africa)
         fig_map.update_geos(
             center=dict(lat=9.0, lon=-2.0),
             projection_scale=4.5,

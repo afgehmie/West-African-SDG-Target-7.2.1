@@ -53,7 +53,7 @@ else:
   )
   df_filtered_all = df_melted.dropna(subset=["Value", "Year"])
 
-  # Map Country Names to ISO-3 codes for reliable mapping
+  # Map Country Names to ISO-3 codes for accurate regional mapping
   iso_mapping = {
       "Benin": "BEN",
       "Burkina Faso": "BFA",
@@ -133,7 +133,6 @@ else:
     df_year = df_filtered[df_filtered["Year"] == selected_year]
     regional_avg = df_year["Value"].mean()
 
-    # Calculate previous year for movement comparison
     prev_year = selected_year - 1
     df_prev = df_filtered[df_filtered["Year"] == prev_year]
     prev_regional_avg = (
@@ -163,23 +162,22 @@ else:
     )
     st.markdown("---")
 
-    # Custom Color Scale: Cream (Least) -> Green (Average) -> Blue (Best)
+    # Custom Color Scale: Cream (Lowest) -> Green (Average) -> Blue (Highest)
     custom_color_scale = [
-        [0.0, "#FFFDD0"],  # Cream (Lowest performers)
-        [0.5, "#2ECC71"],  # Green (Average performers)
-        [1.0, "#1B4F72"],  # Blue (Best performers)
+        [0.0, "#FFFDD0"],  # Cream
+        [0.5, "#2ECC71"],  # Green
+        [1.0, "#1B4F72"],  # Blue
     ]
 
-    # --- FOUR MAIN DASHBOARD SECTIONS ON ONE SCREEN ---
+    # --- ALL FOUR MAIN DASHBOARD METRICS ON ONE SCREEN ---
     st.subheader(
-        f"🎯 Multi-Metric Overview for {selected_series} ({selected_year})"
+        f"🎯 Complete Regional Overview for {selected_series} ({selected_year})"
     )
 
-    # Row 1: Map and Country Bar Chart
     col_map, col_bar = st.columns(2)
 
     with col_map:
-      st.markdown(### `🗺️ 1. Country-Level Geographic Map`)
+      st.markdown("### 🗺️ 1. Country-Level Geographic Map")
       if not df_year.empty:
         fig_map = px.choropleth(
             df_year,
@@ -199,7 +197,7 @@ else:
         st.plotly_chart(fig_map, use_container_width=True)
 
     with col_bar:
-      st.markdown(### `📊 2. Country Rankings Bar Chart`)
+      st.markdown("### 📊 2. Country Rankings Bar Chart")
       if not df_year.empty:
         fig_bar = px.bar(
             df_year.sort_values(by="Value", ascending=True),
@@ -219,11 +217,10 @@ else:
 
     st.markdown("---")
 
-    # Row 2: Regional Trend & Annual Transition Matrix Heatmap
     col_trend, col_heat = st.columns(2)
 
     with col_trend:
-      st.markdown(### `📈 3. Regional Average Annual Trend`)
+      st.markdown("### 📈 3. Regional Average Annual Trend")
       regional_trend = (
           df_filtered.groupby("Year")["Value"].mean().reset_index()
       )
@@ -244,7 +241,7 @@ else:
       st.plotly_chart(fig_trend, use_container_width=True)
 
     with col_heat:
-      st.markdown(### `📉 4. Annual Transition Matrix Heatmap`)
+      st.markdown("### 📉 4. Annual Transition Matrix Heatmap")
       pivot_df = df_filtered.pivot_table(
           index="geoAreaName", columns="Year", values="Value"
       )

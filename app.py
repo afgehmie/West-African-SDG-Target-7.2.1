@@ -228,11 +228,6 @@ else:
           labels={"Value": selected_series},
       )
 
-      # Highlight countries with missing data in solid Grey
-      fig_map.update_traces(
-          nan_color="#D3D3D3", hovertemplate="%{hovertext}: %{z:.1f}"
-      )
-
       # Enlarged map bounds specifically locked to West Africa
       fig_map.update_geos(
           center=dict(lat=10.0, lon=-3.0),
@@ -255,11 +250,6 @@ else:
           f"### 📊 2. Country Rankings — Lowest to Highest ({selected_year})"
       )
 
-      # Render Bar Chart with explicit Grey bars for N/A values
-      bar_colors = [
-          "#D3D3D3" if pd.isna(v) else v for v in df_year_sorted["Value"]
-      ]
-
       fig_bar = px.bar(
           df_year_sorted,
           x="Value",
@@ -270,7 +260,7 @@ else:
           text="TextLabel",
           labels={"Value": selected_series, "geoAreaName": "Country"},
       )
-      fig_bar.update_traces(textposition="outside", nan_color="#D3D3D3")
+      fig_bar.update_traces(textposition="outside")
       fig_bar.update_layout(
           height=420,
           showlegend=False,
@@ -305,7 +295,6 @@ else:
           line_color="#1B4F72", line_width=3, marker_size=8
       )
 
-      # Highlight current year on line plot
       curr_val_row = regional_trend[regional_trend["Year"] == selected_year]
       if not curr_val_row.empty:
         fig_trend.add_trace(
@@ -331,7 +320,6 @@ else:
           index="geoAreaName", columns="Year", values="Value"
       )
 
-      # Sort matrix so highest performing countries appear at the TOP
       pivot_df["MeanVal"] = pivot_df.mean(axis=1)
       pivot_df = pivot_df.sort_values(by="MeanVal", ascending=True).drop(
           columns=["MeanVal"]
@@ -354,6 +342,5 @@ else:
         )
         st.plotly_chart(fig_heatmap, use_container_width=True)
 
-    # Rerun logic to trigger next frame seamlessly when playing
     if st.session_state.is_playing:
       st.rerun()

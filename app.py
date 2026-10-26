@@ -113,7 +113,7 @@ else:
       "Select Data Category / Indicator:", options=all_types, index=0
   )
 
-  df_filtered = df_melted[df_filtered["seriesDescription"] == selected_series]
+  df_filtered = df_melted[df_melted["seriesDescription"] == selected_series]
   available_years = sorted(df_filtered["Year"].dropna().unique().astype(int))
 
   if available_years:
@@ -205,7 +205,6 @@ else:
       st.markdown(
           f"### 🗺️ 1. West Africa Regional Map (Interactive Playback)"
       )
-      # Native Plotly animation frame enables smooth, flicker-free client-side playback
       fig_anim_map = px.choropleth(
           df_anim,
           locations="ISO3",
@@ -217,7 +216,6 @@ else:
           scope="africa",
           labels={"DisplayValue": selected_series},
       )
-      # Perfectly scaled bounds so Gambia, Cabo Verde, and all 15 countries are 100% visible
       fig_anim_map.update_geos(
           center=dict(lat=11.0, lon=-7.5),
           projection_scale=2.8,

@@ -170,7 +170,7 @@ else:
         lambda x: f"{x:.1f}" if pd.notnull(x) else "N/A"
     )
 
-    # Sort lowest to highest (bars build upwards)
+    # Sort lowest to highest for bar charts
     df_year_sorted = df_year_full.sort_values(
         by="Value", ascending=True, na_position="first"
     )
@@ -261,6 +261,29 @@ else:
           labels={"Value": selected_series, "geoAreaName": "Country"},
       )
       fig_bar.update_traces(textposition="outside")
+
+      # Add dividing lines after every 5 countries to split into 3 performance levels (5 countries each)
+      fig_bar.add_shape(
+          type="line",
+          x0=0,
+          x1=1,
+          y0=4.5,
+          y1=4.5,
+          xref="paper",
+          yref="y",
+          line=dict(color="red", width=2, dash="dash"),
+      )
+      fig_bar.add_shape(
+          type="line",
+          x0=0,
+          x1=1,
+          y0=9.5,
+          y1=9.5,
+          xref="paper",
+          yref="y",
+          line=dict(color="red", width=2, dash="dash"),
+      )
+
       fig_bar.update_layout(
           height=420,
           showlegend=False,
@@ -320,8 +343,9 @@ else:
           index="geoAreaName", columns="Year", values="Value"
       )
 
+      # Sort transition matrix so highest performing countries appear at the TOP
       pivot_df["MeanVal"] = pivot_df.mean(axis=1)
-      pivot_df = pivot_df.sort_values(by="MeanVal", ascending=True).drop(
+      pivot_df = pivot_df.sort_values(by="MeanVal", ascending=False).drop(
           columns=["MeanVal"]
       )
 

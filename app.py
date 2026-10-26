@@ -148,11 +148,9 @@ else:
         value=available_years[st.session_state.current_year_idx],
     )
 
-    # Use st.fragment to update charts instantly without white page fade/reload
+
+    # Use st.fragment for smooth updates without full-page white flashes
     @st.fragment
-    py_fragment = True
-
-
     def render_dashboard(curr_year):
       sns_cmap = sns.color_palette("YlGnBu", as_cmap=True)
       custom_color_scale = [

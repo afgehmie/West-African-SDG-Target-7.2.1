@@ -199,7 +199,7 @@ else:
         delta=f"{len(valid_vals)} / {len(all_countries)} Countries Reporting",
     )
     c3.metric(
-        label="📅 Dynamic Year View",
+        label="📅 Active Year View",
         value=f"Year: {selected_year}",
         delta="Auto-Playing 🔄" if st.session_state.is_playing else "Paused ⏸️",
     )
@@ -225,7 +225,7 @@ else:
           scope="africa",
           labels={"DisplayValue": selected_series},
       )
-      # Significantly enlarged map bounds specifically locked to West Africa, ensuring Gambia & Cabo Verde are fully visible
+      # Enlarged map bounds with center adjusted so Gambia and Cabo Verde are 100% visible
       fig_map.update_geos(
           center=dict(lat=10.5, lon=-6.5),
           projection_scale=3.5,
@@ -256,7 +256,7 @@ else:
       )
       fig_bar.update_traces(textposition="outside")
 
-      # 3 Performance Group Dividers (after every 5 countries)
+      # 3 Performance Group Dividers on Bar Chart (after every 5 countries)
       fig_bar.add_shape(
           type="line",
           x0=0,

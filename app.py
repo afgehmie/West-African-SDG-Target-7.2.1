@@ -358,6 +358,7 @@ else:
         )
 
         if not pivot_df.empty:
+          # Restored exact original px.imshow plotting structure
           fig_heatmap = px.imshow(
               pivot_df,
               labels=dict(x="Year", y="Country", color="Value"),

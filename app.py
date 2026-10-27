@@ -15,7 +15,7 @@ st.markdown(
     """
     <style>
     .main .block-container { padding-top: 1.2rem; padding-bottom: 1.2rem; }
-    h3 { font-size: 1.35rem !important; font-weight: 700 !important; margin-bottom: 0.1rem !important; }
+    h3 { font-size: 1.2rem !important; font-weight: 700 !important; margin-bottom: 0.1rem !important; }
     </style>
 """,
     unsafe_allow_html=True,
@@ -142,11 +142,6 @@ else:
     df_anim = pd.DataFrame(full_grid)
 
     st.markdown("---")
-    st.markdown(
-        "💡 *Tip: Use the built-in **Play / Pause** buttons and timeline sliders"
-        " on each chart below for smooth, flicker-free client-side animation.*"
-    )
-    st.markdown("---")
 
     sns_cmap = sns.color_palette("YlGnBu", as_cmap=True)
     custom_color_scale = [
@@ -155,83 +150,114 @@ else:
         [1.0, mcolors.to_hex(sns_cmap(0.95))],
     ]
 
-    # --- 1. REGIONAL MAP (CLIENT-SIDE ANIMATION) ---
-    st.markdown("### 🗺️ 1. West Africa Regional Map (2015 - 2024)")
-    fig_map = px.choropleth(
-        df_anim,
-        locations="ISO3",
-        color="DisplayValue",
-        hover_name="geoAreaName",
-        animation_frame="Year",
-        color_continuous_scale=custom_color_scale,
-        range_color=[0, df_anim["Value"].max() if not df_anim["Value"].dropna().empty else 100],
-        scope="africa",
-        labels={"DisplayValue": selected_series},
-        template="plotly_dark",
-    )
-    fig_map.update_geos(
-        center=dict(lat=10.5, lon=-6.5),
-        projection_scale=3.5,
-        visible=False,
-        showcountries=True,
-        countrycolor="#666666",
-        countrywidth=1.0,
-        bgcolor="rgba(0,0,0,0)",
-    )
-    fig_map.update_layout(
-        height=460,
-        margin={"r": 0, "t": 30, "l": 0, "b": 0},
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-    )
-    st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": False})
+    # --- TOP ROW: SIDE-BY-SIDE MAP & RANKINGS ---
+    col_map, col_bar = st.columns([1.1, 1.0])
+
+    with col_map:
+      st.markdown("### 🗺️ 1. West Africa Regional Map")
+      fig_map = px.choropleth(
+          df_anim,
+          locations="ISO3",
+          color="DisplayValue",
+          hover_name="geoAreaName",
+          animation_frame="Year",
+          color_continuous_scale=custom_color_scale,
+          range_color=[
+              0,
+              df_anim["Value"].max()
+              if not df_anim["Value"].dropna().empty
+              else 100,
+          ],
+          scope="africa",
+          labels={"DisplayValue": selected_series},
+          template="plotly_dark",
+      )
+      fig_map.update_geos(
+          center=dict(lat=10.5, lon=-6.5),
+          projection_scale=3.5,
+          visible=False,
+          showcountries=True,
+          countrycolor="#666666",
+          countrywidth=1.0,
+          bgcolor="rgba(0,0,0,0)",
+      )
+      fig_map.update_layout(
+          height=420,
+          margin={"r": 0, "t": 25, "l": 0, "b": 0},
+          paper_bgcolor="rgba(0,0,0,0)",
+          plot_bgcolor="rgba(0,0,0,0)",
+      )
+      st.plotly_chart(
+          fig_map, use_container_width=True, config={"displayModeBar": False}
+      )
+
+    with col_bar:
+      st.markdown("### 📊 2. Country Rankings")
+      df_bar_anim = df_anim.copy()
+      df_bar_anim["sort_val"] = df_bar_anim["Value"].fillna(-999)
+      df_bar_anim = df_bar_anim.sort_values(
+          by=["Year", "sort_val"], ascending=[True, True]
+      )
+
+      fig_bar = px.bar(
+          df_bar_anim,
+          x="Value",
+          y="geoAreaName",
+          animation_frame="Year",
+          orientation="h",
+          color="DisplayValue",
+          color_continuous_scale=custom_color_scale,
+          text="TextLabel",
+          labels={"Value": selected_series, "geoAreaName": "Country"},
+          template="plotly_dark",
+      )
+      fig_bar.update_traces(textposition="outside")
+
+      # 3 Performance Group Dividers
+      fig_bar.add_shape(
+          type="line",
+          x0=0,
+          x1=1,
+          y0=4.5,
+          y1=4.5,
+          xref="paper",
+          yref="y",
+          line=dict(color="#FF5252", width=2, dash="dash"),
+      )
+      fig_bar.add_shape(
+          type="line",
+          x0=0,
+          x1=1,
+          y0=9.5,
+          y1=9.5,
+          xref="paper",
+          yref="y",
+          line=dict(color="#FF5252", width=2, dash="dash"),
+      )
+
+      fig_bar.update_layout(
+          height=420,
+          showlegend=False,
+          margin={"r": 0, "t": 25, "l": 0, "b": 0},
+          xaxis={"title": selected_series},
+          yaxis={"title": ""},
+          paper_bgcolor="rgba(0,0,0,0)",
+          plot_bgcolor="rgba(0,0,0,0)",
+      )
+      st.plotly_chart(
+          fig_bar, use_container_width=True, config={"displayModeBar": False}
+      )
 
     st.markdown("---")
 
-    # --- 2. COUNTRY RANKINGS (CLIENT-SIDE ANIMATION) ---
-    st.markdown("### 📊 2. Country Rankings (2015 - 2024)")
-    
-    # Sort values per year for ranking bar chart
-    df_bar_anim = df_anim.copy()
-    df_bar_anim["sort_val"] = df_bar_anim["Value"].fillna(-999)
-    df_bar_anim = df_bar_anim.sort_values(by=["Year", "sort_val"], ascending=[True, True])
-
-    fig_bar = px.bar(
-        df_bar_anim,
-        x="Value",
-        y="geoAreaName",
-        animation_frame="Year",
-        orientation="h",
-        color="DisplayValue",
-        color_continuous_scale=custom_color_scale,
-        text="TextLabel",
-        labels={"Value": selected_series, "geoAreaName": "Country"},
-        template="plotly_dark",
-    )
-    fig_bar.update_traces(textposition="outside")
-
-    # 3 Performance Group Dividers
-    fig_bar.add_shape(type="line", x0=0, x1=1, y0=4.5, y1=4.5, xref="paper", yref="y", line=dict(color="#FF5252", width=2, dash="dash"))
-    fig_bar.add_shape(type="line", x0=0, x1=1, y0=9.5, y1=9.5, xref="paper", yref="y", line=dict(color="#FF5252", width=2, dash="dash"))
-
-    fig_bar.update_layout(
-        height=460,
-        showlegend=False,
-        margin={"r": 0, "t": 30, "l": 0, "b": 0},
-        xaxis={"title": selected_series},
-        yaxis={"title": ""},
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-    )
-    st.plotly_chart(fig_bar, use_container_width=True, config={"displayModeBar": False})
-
-    st.markdown("---")
-
+    # --- BOTTOM ROW: SIDE-BY-SIDE TRAJECTORY & HEATMAP ---
     col_trend, col_heat = st.columns(2)
 
     with col_trend:
       st.markdown("### 📈 3. Regional Average Trajectory")
-      regional_trend = df_filtered.groupby("Year")["Value"].mean().reset_index()
+      regional_trend = (
+          df_filtered.groupby("Year")["Value"].mean().reset_index()
+      )
       fig_trend = px.line(
           regional_trend,
           x="Year",
@@ -240,22 +266,30 @@ else:
           labels={"Value": "Regional Mean", "Year": "Year"},
           template="plotly_dark",
       )
-      fig_trend.update_traces(line_color="#00E5FF", line_width=3.5, line_dash="dot", marker_size=10)
+      fig_trend.update_traces(
+          line_color="#00E5FF", line_width=3.5, line_dash="dot", marker_size=10
+      )
       fig_trend.update_layout(
           height=380,
-          margin={"r": 0, "t": 30, "l": 0, "b": 0},
+          margin={"r": 0, "t": 25, "l": 0, "b": 0},
           showlegend=False,
           xaxis=dict(tickmode="linear", dtick=1),
           paper_bgcolor="rgba(0,0,0,0)",
           plot_bgcolor="rgba(0,0,0,0)",
       )
-      st.plotly_chart(fig_trend, use_container_width=True, config={"displayModeBar": False})
+      st.plotly_chart(
+          fig_trend, use_container_width=True, config={"displayModeBar": False}
+      )
 
     with col_heat:
       st.markdown("### 📉 4. Transition Matrix Heatmap")
-      pivot_df = df_filtered.pivot_table(index="geoAreaName", columns="Year", values="Value")
+      pivot_df = df_filtered.pivot_table(
+          index="geoAreaName", columns="Year", values="Value"
+      )
       pivot_df["MeanVal"] = pivot_df.mean(axis=1)
-      pivot_df = pivot_df.sort_values(by="MeanVal", ascending=False).drop(columns=["MeanVal"])
+      pivot_df = pivot_df.sort_values(by="MeanVal", ascending=False).drop(
+          columns=["MeanVal"]
+      )
 
       if not pivot_df.empty:
         fig_heatmap = go.Figure(
@@ -264,16 +298,37 @@ else:
                 x=[str(y) for y in pivot_df.columns],
                 y=pivot_df.index.tolist(),
                 colorscale="YlGnBu",
-                text=[[f"{val:.1f}" if pd.notnull(val) else "" for val in row] for row in pivot_df.values],
+                text=[
+                    [f"{val:.1f}" if pd.notnull(val) else "" for val in row]
+                    for row in pivot_df.values
+                ],
                 texttemplate="%{text}",
                 colorbar=dict(title="Value"),
             )
         )
-        fig_heatmap.add_shape(type="line", x0=0, x1=1, y0=4.5, y1=4.5, xref="paper", yref="y", line=dict(color="#FF5252", width=2, dash="dash"))
-        fig_heatmap.add_shape(type="line", x0=0, x1=1, y0=9.5, y1=9.5, xref="paper", yref="y", line=dict(color="#FF5252", width=2, dash="dash"))
+        fig_heatmap.add_shape(
+            type="line",
+            x0=0,
+            x1=1,
+            y0=4.5,
+            y1=4.5,
+            xref="paper",
+            yref="y",
+            line=dict(color="#FF5252", width=2, dash="dash"),
+        )
+        fig_heatmap.add_shape(
+            type="line",
+            x0=0,
+            x1=1,
+            y0=9.5,
+            y1=9.5,
+            xref="paper",
+            yref="y",
+            line=dict(color="#FF5252", width=2, dash="dash"),
+        )
         fig_heatmap.update_layout(
             height=380,
-            margin={"r": 0, "t": 30, "l": 0, "b": 10},
+            margin={"r": 0, "t": 25, "l": 0, "b": 10},
             xaxis_title="Year",
             yaxis_title="Country",
             template="plotly_dark",
@@ -281,4 +336,6 @@ else:
             plot_bgcolor="rgba(0,0,0,0)",
             yaxis=dict(autorange="reversed"),
         )
-        st.plotly_chart(fig_heatmap, use_container_width=True, config={"displayModeBar": False})
+        st.plotly_chart(
+            fig_heatmap, use_container_width=True, config={"displayModeBar": False}
+        )

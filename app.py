@@ -247,9 +247,10 @@ else:
             margin={"r": 0, "t": 10, "l": 0, "b": 0},
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
-            font=dict(color="inherit"),
         )
-        st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": False})
+        st.plotly_chart(
+            fig_map, use_container_width=True, config={"displayModeBar": False}
+        )
 
       with col_bar:
         st.markdown(f"### 📊 2. Country Rankings — Year: {curr_year}")
@@ -300,9 +301,10 @@ else:
             xaxis={"title": f"{selected_series} ({curr_year})"},
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
-            font=dict(color="inherit"),
         )
-        st.plotly_chart(fig_bar, use_container_width=True, config={"displayModeBar": False})
+        st.plotly_chart(
+            fig_bar, use_container_width=True, config={"displayModeBar": False}
+        )
 
       st.markdown("---")
 
@@ -349,9 +351,10 @@ else:
             xaxis=dict(tickmode="linear", dtick=1),
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
-            font=dict(color="inherit"),
         )
-        st.plotly_chart(fig_trend, use_container_width=True, config={"displayModeBar": False})
+        st.plotly_chart(
+            fig_trend, use_container_width=True, config={"displayModeBar": False}
+        )
 
       with col_heat:
         st.markdown(f"### 📉 4. Transition Matrix Heatmap — Year: {curr_year}")
@@ -414,9 +417,10 @@ else:
               paper_bgcolor="rgba(0,0,0,0)",
               plot_bgcolor="rgba(0,0,0,0)",
               yaxis=dict(autorange="reversed"),
-              font=dict(color="inherit"),
           )
-          st.plotly_chart(fig_heatmap, use_container_width=True, config={"displayModeBar": False})
+          st.plotly_chart(
+              fig_heatmap, use_container_width=True, config={"displayModeBar": False}
+          )
 
 
     # Invoke the fragment update loop

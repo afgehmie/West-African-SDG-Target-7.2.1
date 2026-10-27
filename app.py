@@ -355,24 +355,30 @@ else:
             index="geoAreaName", columns="Year", values="Value"
         )
 
-        # Sort ascending so highest values appear at the TOP when plotted bottom-up by Plotly
+        # Sort descending so highest performance sits cleanly at the top
         pivot_df["MeanVal"] = pivot_df.mean(axis=1)
-        pivot_df = pivot_df.sort_values(by="MeanVal", ascending=True).drop(
+        pivot_df = pivot_df.sort_values(by="MeanVal", ascending=False).drop(
             columns=["MeanVal"]
         )
 
         if not pivot_df.empty:
-          fig_heatmap = px.imshow(
-              pivot_df,
-              labels=dict(x="Year", y="Country", color="Value"),
-              x=[str(y) for y in pivot_df.columns],
-              y=pivot_df.index,
-              color_continuous_scale=custom_color_scale,
-              text_auto=".1f",
-              template="plotly_dark",
+          # Using go.Heatmap with explicit orientation to lock country ordering and line placement
+          fig_heatmap = go.Figure(
+              data=go.Heatmap(
+                  z=pivot_df.values,
+                  x=[str(y) for y in pivot_df.columns],
+                  y=pivot_df.index.tolist(),
+                  colorscale="YlGnBu",
+                  text=[
+                      [f"{val:.1f}" if pd.notnull(val) else "" for val in row]
+                      for row in pivot_df.values
+                  ],
+                  texttemplate="%{text}",
+                  colorbar=dict(title="Value"),
+              )
           )
 
-          # 3-tier performance group dividing lines perfectly aligned top-down
+          # 3-tier performance group dividing lines precisely positioned between tiers
           fig_heatmap.add_shape(
               type="line",
               x0=0,
@@ -399,9 +405,10 @@ else:
               margin={"r": 0, "t": 10, "l": 0, "b": 10},
               xaxis_title="Year",
               yaxis_title="Country",
-              xaxis=dict(tickmode="linear", dtick=1),
+              template="plotly_dark",
               paper_bgcolor="rgba(0,0,0,0)",
               plot_bgcolor="rgba(0,0,0,0)",
+              yaxis=dict(autorange="reversed"),
           )
           st.plotly_chart(fig_heatmap, use_container_width=True)
 

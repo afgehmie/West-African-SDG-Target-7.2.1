@@ -214,7 +214,7 @@ else:
       )
       st.markdown("---")
 
-      # --- TOP ROW: MAP & COUNTRY RANKINGS (Larger size) ---
+      # --- TOP ROW: MAP & COUNTRY RANKINGS (Larger size, side-by-side) ---
       col_map, col_bar = st.columns([1.1, 1.0])
 
       with col_map:
@@ -249,9 +249,13 @@ else:
             margin={"r": 0, "t": 10, "l": 0, "b": 0},
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
+            uirevision="static",
         )
         st.plotly_chart(
-            fig_map, use_container_width=True, config={"displayModeBar": False}
+            fig_map,
+            use_container_width=True,
+            config={"displayModeBar": False},
+            key="map_chart",
         )
 
       with col_bar:
@@ -303,9 +307,13 @@ else:
             xaxis={"title": f"{selected_series} ({curr_year})"},
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
+            uirevision="static",
         )
         st.plotly_chart(
-            fig_bar, use_container_width=True, config={"displayModeBar": False}
+            fig_bar,
+            use_container_width=True,
+            config={"displayModeBar": False},
+            key="bar_chart",
         )
 
       st.markdown("---")
@@ -354,9 +362,13 @@ else:
             xaxis=dict(tickmode="linear", dtick=1),
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
+            uirevision="static",
         )
         st.plotly_chart(
-            fig_trend, use_container_width=True, config={"displayModeBar": False}
+            fig_trend,
+            use_container_width=True,
+            config={"displayModeBar": False},
+            key="trend_chart",
         )
 
       with col_heat:
@@ -420,9 +432,13 @@ else:
               paper_bgcolor="rgba(0,0,0,0)",
               plot_bgcolor="rgba(0,0,0,0)",
               yaxis=dict(autorange="reversed"),
+              uirevision="static",
           )
           st.plotly_chart(
-              fig_heatmap, use_container_width=True, config={"displayModeBar": False}
+              fig_heatmap,
+              use_container_width=True,
+              config={"displayModeBar": False},
+              key="heat_chart",
           )
 
 

@@ -117,6 +117,14 @@ else:
   available_years = sorted(df_filtered["Year"].dropna().unique().astype(int))
 
   if available_years:
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("▶️ Global Presentation Controls")
+    st.sidebar.info(
+        "Use the **Play ▶️** button located at the bottom-left corner of the"
+        " Map and Rankings charts to trigger smooth, flicker-free"
+        " year-on-year animations simultaneously!"
+    )
+
     # Color Palette Setup using Seaborn & Matplotlib
     sns_cmap = sns.color_palette("YlGnBu", as_cmap=True)
     custom_color_scale = [
@@ -141,12 +149,28 @@ else:
       anim_frames.append(df_y)
     df_anim = pd.concat(anim_frames)
 
+    # Latest year snapshot for metrics and static charts
+    latest_year = available_years[-1]
+    df_latest_raw = df_filtered[df_filtered["Year"] == latest_year]
+    valid_vals = df_latest_raw["Value"].dropna()
+    regional_avg = valid_vals.mean() if not valid_vals.empty else 0.0
+
     st.markdown("---")
-    st.info(
-        "💡 **Presentation Tip:** Click the **▶️ Play** button at the bottom"
-        " left of the Map and Rankings charts below for butter-smooth,"
-        " flicker-free animations across all years (2015–2024) with zero white"
-        " page reloads!"
+    c1, c2, c3 = st.columns(3)
+    c1.metric(
+        label=f"🌍 Regional Mean (2015–2024)",
+        value=f"{regional_avg:.2f}",
+        delta="Active Indicator Baseline",
+    )
+    c2.metric(
+        label="📊 Active Indicator",
+        value=selected_series,
+        delta=f"15 ECOWAS Member States",
+    )
+    c3.metric(
+        label="🚀 Presentation Mode",
+        value="Client-Side Animated Active",
+        delta="Zero White Fades ⚡",
     )
     st.markdown("---")
 
@@ -154,8 +178,9 @@ else:
     col_map, col_bar = st.columns([1.1, 1.0])
 
     with col_map:
-      st.markdown("### 🗺️ 1. West Africa Regional Map (Animated)")
-      # Native Plotly client-side animation frame
+      st.markdown(
+          "### 🗺️ 1. West Africa Regional Map (2015–2024 Animated Timeline)"
+      )
       fig_anim_map = px.choropleth(
           df_anim,
           locations="ISO3",
@@ -185,9 +210,10 @@ else:
       st.plotly_chart(fig_anim_map, use_container_width=True)
 
     with col_bar:
-      st.markdown("### 📊 2. Country Rankings (Animated)")
+      st.markdown(
+          "### 📊 2. Country Rankings (2015–2024 Animated Timeline)"
+      )
 
-      # Sort values for bar chart ordering
       df_anim_sorted = df_anim.sort_values(
           by=["Year", "Value"], ascending=[True, True], na_position="first"
       )
@@ -241,30 +267,37 @@ else:
     col_trend, col_heat = st.columns(2)
 
     with col_trend:
-      st.markdown("### 📈 3. Regional Average Annual Trajectory")
+      st.markdown("### 📈 3. Regional Average Trajectory (2015–2024)")
       regional_trend = (
           df_filtered.groupby("Year")["Value"].mean().reset_index()
       )
+
+      # Animated trajectory line with moving year-on-year marker dot
       fig_trend = px.line(
           regional_trend,
           x="Year",
           y="Value",
           markers=True,
+          animation_frame="Year",
           labels={"Value": "Regional Mean", "Year": "Year"},
       )
       fig_trend.update_traces(
-          line_color="#1B4F72", line_width=3, marker_size=8
+          line_color="#1B4F72", line_width=3, marker_size=12
       )
       fig_trend.update_layout(
           height=380,
           margin={"r": 0, "t": 10, "l": 0, "b": 0},
           showlegend=False,
-          xaxis=dict(tickmode="linear", dtick=1),
+          xaxis=dict(
+              tickmode="linear",
+              dtick=1,
+              range=[min(available_years) - 0.5, max(available_years) + 0.5],
+          ),
       )
       st.plotly_chart(fig_trend, use_container_width=True)
 
     with col_heat:
-      st.markdown("### 📉 4. Transition Matrix Heatmap")
+      st.markdown("### 📉 4. Transition Matrix Heatmap (2015–2024)")
       pivot_df = df_filtered.pivot_table(
           index="geoAreaName", columns="Year", values="Value"
       )

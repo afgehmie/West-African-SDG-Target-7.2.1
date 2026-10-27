@@ -1,3 +1,4 @@
+import time
 import matplotlib.colors as mcolors
 import pandas as pd
 import plotly.express as px
@@ -14,8 +15,8 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-    .main .block-container { padding-top: 1.2rem; padding-bottom: 1.2rem; }
-    h3 { font-size: 1.2rem !important; font-weight: 700 !important; margin-bottom: 0.1rem !important; }
+    .main .block-container { padding-top: 1.0rem; padding-bottom: 1.0rem; }
+    h3 { font-size: 1.25rem !important; font-weight: 700 !important; margin-bottom: 0.1rem !important; }
     </style>
 """,
     unsafe_allow_html=True,
@@ -105,7 +106,7 @@ else:
       "Togo": "TGO",
   }
 
-  # Sidebar Controls
+  # Sidebar Global Controls
   st.sidebar.header("⚙️ Dashboard Controls")
   all_types = df_melted["seriesDescription"].unique().tolist()
   selected_series = st.sidebar.selectbox(
@@ -117,196 +118,159 @@ else:
       & (df_melted["geoAreaName"].isin(all_countries))
   ].copy()
   df_filtered["Year"] = df_filtered["Year"].astype(int)
-  df_filtered = df_filtered.sort_values(by=["Year", "geoAreaName"])
+  available_years = sorted(df_filtered["Year"].dropna().unique().astype(int))
 
-  if not df_filtered.empty:
-    # Prepare complete grid for all countries x years to prevent animation gaps
-    years_sorted = sorted(df_filtered["Year"].unique())
-    full_grid = []
-    for yr in years_sorted:
-      for c in all_countries:
-        subset = df_filtered[
-            (df_filtered["Year"] == yr) & (df_filtered["geoAreaName"] == c)
-        ]
-        val = subset["Value"].values[0] if not subset.empty else None
-        full_grid.append(
-            {
-                "geoAreaName": c,
-                "Year": yr,
-                "Value": val,
-                "ISO3": iso_mapping[c],
-                "DisplayValue": val if val is not None else -1,
-                "TextLabel": f"{val:.1f}" if val is not None else "N/A",
-            }
+  if available_years:
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("▶️ Global Playback Controls")
+
+    if "current_year_idx" not in st.session_state:
+      st.session_state.current_year_idx = 0
+    if "is_playing" not in st.session_state:
+      st.session_state.is_playing = False
+
+    col_btn1, col_btn2 = st.sidebar.columns(2)
+    if col_btn1.button("▶️ Play", use_container_width=True):
+      st.session_state.is_playing = True
+    if col_btn2.button("⏸️ Pause", use_container_width=True):
+      st.session_state.is_playing = False
+
+    playback_speed = st.sidebar.slider(
+        "Transition Speed (seconds):", 0.3, 2.0, 0.7, step=0.1
+    )
+
+    selected_year = st.sidebar.select_slider(
+        "Select Year Manually:",
+        options=available_years,
+        value=available_years[st.session_state.current_year_idx],
+    )
+
+    if selected_year != available_years[st.session_state.current_year_idx]:
+      st.session_state.current_year_idx = available_years.index(selected_year)
+
+    # Background ticker for infinite smooth playback without full-page reloads
+    run_interval = playback_speed if st.session_state.is_playing else None
+
+
+    @st.fragment(run_every=run_interval)
+    def render_unified_dashboard():
+      if st.session_state.is_playing:
+        st.session_state.current_year_idx = (
+            st.session_state.current_year_idx + 1
+        ) % len(available_years)
+
+      curr_year = available_years[st.session_state.current_year_idx]
+
+      sns_cmap = sns.color_palette("YlGnBu", as_cmap=True)
+      custom_color_scale = [
+          [0.0, mcolors.to_hex(sns_cmap(0.15))],
+          [0.5, mcolors.to_hex(sns_cmap(0.55))],
+          [1.0, mcolors.to_hex(sns_cmap(0.95))],
+      ]
+
+      df_year_raw = df_filtered[df_filtered["Year"] == curr_year]
+      df_year_full = pd.DataFrame(
+          {"geoAreaName": all_countries, "Year": curr_year}
+      )
+      df_year_full = df_year_full.merge(
+          df_year_raw[["geoAreaName", "Value"]], on="geoAreaName", how="left"
+      )
+      df_year_full["ISO3"] = df_year_full["geoAreaName"].map(iso_mapping)
+      df_year_full["DisplayValue"] = df_year_full["Value"].fillna(-1)
+      df_year_full["TextLabel"] = df_year_full["Value"].apply(
+          lambda x: f"{x:.1f}" if pd.notnull(x) else "N/A"
+      )
+      df_year_sorted = df_year_full.sort_values(
+          by="Value", ascending=True, na_position="first"
+      )
+
+      valid_vals = df_year_raw["Value"].dropna()
+      regional_avg = valid_vals.mean() if not valid_vals.empty else 0.0
+
+      prev_year = curr_year - 1
+      df_prev_raw = df_filtered[df_filtered["Year"] == prev_year]
+      prev_valid = df_prev_raw["Value"].dropna()
+      prev_avg = prev_valid.mean() if not prev_valid.empty else regional_avg
+      delta_avg = regional_avg - prev_avg
+
+      st.markdown("---")
+      c1, c2, c3 = st.columns(3)
+      c1.metric(
+          label=f"🌍 Regional Mean ({curr_year})",
+          value=f"{regional_avg:.2f}",
+          delta=f"{delta_avg:+.2f} vs {prev_year}"
+          if prev_year in available_years
+          else "Baseline",
+      )
+      c2.metric(
+          label="📊 Active Indicator",
+          value=selected_series,
+          delta=f"{len(valid_vals)} / {len(all_countries)} Reporting",
+      )
+      c3.metric(
+          label="📅 Active Timeline",
+          value=f"Year: {curr_year}",
+          delta="Auto-Playing 🔄" if st.session_state.is_playing else "Paused ⏸️",
+      )
+      st.markdown("---")
+
+      # --- TOP ROW: MAP & COUNTRY RANKINGS (Larger size) ---
+      col_map, col_bar = st.columns([1.1, 1.0])
+
+      with col_map:
+        st.markdown(f"### 🗺️ 1. West Africa Regional Map — Year: {curr_year}")
+        fig_map = px.choropleth(
+            df_year_full,
+            locations="ISO3",
+            color="DisplayValue",
+            hover_name="geoAreaName",
+            color_continuous_scale=custom_color_scale,
+            range_color=[
+                0,
+                df_filtered["Value"].max()
+                if not df_filtered["Value"].dropna().empty
+                else 100,
+            ],
+            scope="africa",
+            labels={"DisplayValue": selected_series},
+            template="plotly_dark",
         )
-    df_anim = pd.DataFrame(full_grid)
-
-    st.markdown("---")
-
-    sns_cmap = sns.color_palette("YlGnBu", as_cmap=True)
-    custom_color_scale = [
-        [0.0, mcolors.to_hex(sns_cmap(0.15))],
-        [0.5, mcolors.to_hex(sns_cmap(0.55))],
-        [1.0, mcolors.to_hex(sns_cmap(0.95))],
-    ]
-
-    # --- TOP ROW: SIDE-BY-SIDE MAP & RANKINGS ---
-    col_map, col_bar = st.columns([1.1, 1.0])
-
-    with col_map:
-      st.markdown("### 🗺️ 1. West Africa Regional Map")
-      fig_map = px.choropleth(
-          df_anim,
-          locations="ISO3",
-          color="DisplayValue",
-          hover_name="geoAreaName",
-          animation_frame="Year",
-          color_continuous_scale=custom_color_scale,
-          range_color=[
-              0,
-              df_anim["Value"].max()
-              if not df_anim["Value"].dropna().empty
-              else 100,
-          ],
-          scope="africa",
-          labels={"DisplayValue": selected_series},
-          template="plotly_dark",
-      )
-      fig_map.update_geos(
-          center=dict(lat=10.5, lon=-6.5),
-          projection_scale=3.5,
-          visible=False,
-          showcountries=True,
-          countrycolor="#666666",
-          countrywidth=1.0,
-          bgcolor="rgba(0,0,0,0)",
-      )
-      fig_map.update_layout(
-          height=420,
-          margin={"r": 0, "t": 25, "l": 0, "b": 0},
-          paper_bgcolor="rgba(0,0,0,0)",
-          plot_bgcolor="rgba(0,0,0,0)",
-      )
-      st.plotly_chart(
-          fig_map, use_container_width=True, config={"displayModeBar": False}
-      )
-
-    with col_bar:
-      st.markdown("### 📊 2. Country Rankings")
-      df_bar_anim = df_anim.copy()
-      df_bar_anim["sort_val"] = df_bar_anim["Value"].fillna(-999)
-      df_bar_anim = df_bar_anim.sort_values(
-          by=["Year", "sort_val"], ascending=[True, True]
-      )
-
-      fig_bar = px.bar(
-          df_bar_anim,
-          x="Value",
-          y="geoAreaName",
-          animation_frame="Year",
-          orientation="h",
-          color="DisplayValue",
-          color_continuous_scale=custom_color_scale,
-          text="TextLabel",
-          labels={"Value": selected_series, "geoAreaName": "Country"},
-          template="plotly_dark",
-      )
-      fig_bar.update_traces(textposition="outside")
-
-      # 3 Performance Group Dividers
-      fig_bar.add_shape(
-          type="line",
-          x0=0,
-          x1=1,
-          y0=4.5,
-          y1=4.5,
-          xref="paper",
-          yref="y",
-          line=dict(color="#FF5252", width=2, dash="dash"),
-      )
-      fig_bar.add_shape(
-          type="line",
-          x0=0,
-          x1=1,
-          y0=9.5,
-          y1=9.5,
-          xref="paper",
-          yref="y",
-          line=dict(color="#FF5252", width=2, dash="dash"),
-      )
-
-      fig_bar.update_layout(
-          height=420,
-          showlegend=False,
-          margin={"r": 0, "t": 25, "l": 0, "b": 0},
-          xaxis={"title": selected_series},
-          yaxis={"title": ""},
-          paper_bgcolor="rgba(0,0,0,0)",
-          plot_bgcolor="rgba(0,0,0,0)",
-      )
-      st.plotly_chart(
-          fig_bar, use_container_width=True, config={"displayModeBar": False}
-      )
-
-    st.markdown("---")
-
-    # --- BOTTOM ROW: SIDE-BY-SIDE TRAJECTORY & HEATMAP ---
-    col_trend, col_heat = st.columns(2)
-
-    with col_trend:
-      st.markdown("### 📈 3. Regional Average Trajectory")
-      regional_trend = (
-          df_filtered.groupby("Year")["Value"].mean().reset_index()
-      )
-      fig_trend = px.line(
-          regional_trend,
-          x="Year",
-          y="Value",
-          markers=True,
-          labels={"Value": "Regional Mean", "Year": "Year"},
-          template="plotly_dark",
-      )
-      fig_trend.update_traces(
-          line_color="#00E5FF", line_width=3.5, line_dash="dot", marker_size=10
-      )
-      fig_trend.update_layout(
-          height=380,
-          margin={"r": 0, "t": 25, "l": 0, "b": 0},
-          showlegend=False,
-          xaxis=dict(tickmode="linear", dtick=1),
-          paper_bgcolor="rgba(0,0,0,0)",
-          plot_bgcolor="rgba(0,0,0,0)",
-      )
-      st.plotly_chart(
-          fig_trend, use_container_width=True, config={"displayModeBar": False}
-      )
-
-    with col_heat:
-      st.markdown("### 📉 4. Transition Matrix Heatmap")
-      pivot_df = df_filtered.pivot_table(
-          index="geoAreaName", columns="Year", values="Value"
-      )
-      pivot_df["MeanVal"] = pivot_df.mean(axis=1)
-      pivot_df = pivot_df.sort_values(by="MeanVal", ascending=False).drop(
-          columns=["MeanVal"]
-      )
-
-      if not pivot_df.empty:
-        fig_heatmap = go.Figure(
-            data=go.Heatmap(
-                z=pivot_df.values,
-                x=[str(y) for y in pivot_df.columns],
-                y=pivot_df.index.tolist(),
-                colorscale="YlGnBu",
-                text=[
-                    [f"{val:.1f}" if pd.notnull(val) else "" for val in row]
-                    for row in pivot_df.values
-                ],
-                texttemplate="%{text}",
-                colorbar=dict(title="Value"),
-            )
+        fig_map.update_geos(
+            center=dict(lat=10.5, lon=-6.5),
+            projection_scale=3.5,
+            visible=False,
+            showcountries=True,
+            countrycolor="#666666",
+            countrywidth=1.0,
+            bgcolor="rgba(0,0,0,0)",
         )
-        fig_heatmap.add_shape(
+        fig_map.update_layout(
+            height=500,
+            margin={"r": 0, "t": 10, "l": 0, "b": 0},
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
+        )
+        st.plotly_chart(
+            fig_map, use_container_width=True, config={"displayModeBar": False}
+        )
+
+      with col_bar:
+        st.markdown(f"### 📊 2. Country Rankings — Year: {curr_year}")
+        fig_bar = px.bar(
+            df_year_sorted,
+            x="Value",
+            y="geoAreaName",
+            orientation="h",
+            color="DisplayValue",
+            color_continuous_scale=custom_color_scale,
+            text="TextLabel",
+            labels={"Value": selected_series, "geoAreaName": "Country"},
+            template="plotly_dark",
+        )
+        fig_bar.update_traces(textposition="outside")
+
+        # 3 Performance Group Dividers (after every 5 countries)
+        fig_bar.add_shape(
             type="line",
             x0=0,
             x1=1,
@@ -316,7 +280,7 @@ else:
             yref="y",
             line=dict(color="#FF5252", width=2, dash="dash"),
         )
-        fig_heatmap.add_shape(
+        fig_bar.add_shape(
             type="line",
             x0=0,
             x1=1,
@@ -326,16 +290,141 @@ else:
             yref="y",
             line=dict(color="#FF5252", width=2, dash="dash"),
         )
-        fig_heatmap.update_layout(
-            height=380,
-            margin={"r": 0, "t": 25, "l": 0, "b": 10},
-            xaxis_title="Year",
-            yaxis_title="Country",
-            template="plotly_dark",
+
+        fig_bar.update_layout(
+            height=500,
+            showlegend=False,
+            margin={"r": 0, "t": 10, "l": 0, "b": 0},
+            yaxis={
+                "categoryorder": "array",
+                "categoryarray": df_year_sorted["geoAreaName"].tolist(),
+                "title": "",
+            },
+            xaxis={"title": f"{selected_series} ({curr_year})"},
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
-            yaxis=dict(autorange="reversed"),
         )
         st.plotly_chart(
-            fig_heatmap, use_container_width=True, config={"displayModeBar": False}
+            fig_bar, use_container_width=True, config={"displayModeBar": False}
         )
+
+      st.markdown("---")
+
+      # --- BOTTOM ROW: TRAJECTORY & HEATMAP ---
+      col_trend, col_heat = st.columns(2)
+
+      with col_trend:
+        st.markdown(
+            f"### 📈 3. Regional Average Trajectory — Year: {curr_year}"
+        )
+        regional_trend = (
+            df_filtered.groupby("Year")["Value"].mean().reset_index()
+        )
+
+        fig_trend = px.line(
+            regional_trend,
+            x="Year",
+            y="Value",
+            markers=True,
+            labels={"Value": "Regional Mean", "Year": "Year"},
+            template="plotly_dark",
+        )
+        fig_trend.update_traces(
+            line_color="#00E5FF", line_width=3.5, line_dash="dot", marker_size=10
+        )
+
+        curr_val_row = regional_trend[regional_trend["Year"] == curr_year]
+        if not curr_val_row.empty:
+          fig_trend.add_trace(
+              go.Scatter(
+                  x=curr_val_row["Year"],
+                  y=curr_val_row["Value"],
+                  mode="markers+text",
+                  marker=dict(color="#FF1744", size=18, symbol="circle"),
+                  text=[f"{curr_val_row['Value'].values[0]:.2f}"],
+                  textposition="top center",
+                  name=str(curr_year),
+              )
+          )
+
+        fig_trend.update_layout(
+            height=420,
+            margin={"r": 0, "t": 10, "l": 0, "b": 0},
+            showlegend=False,
+            xaxis=dict(tickmode="linear", dtick=1),
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
+        )
+        st.plotly_chart(
+            fig_trend, use_container_width=True, config={"displayModeBar": False}
+        )
+
+      with col_heat:
+        st.markdown(f"### 📉 4. Transition Matrix Heatmap — Year: {curr_year}")
+
+        df_filtered_ecowas = df_filtered[
+            df_filtered["geoAreaName"].isin(all_countries)
+        ]
+        pivot_df = df_filtered_ecowas.pivot_table(
+            index="geoAreaName", columns="Year", values="Value"
+        )
+
+        pivot_df["MeanVal"] = pivot_df.mean(axis=1)
+        pivot_df = pivot_df.sort_values(by="MeanVal", ascending=False).drop(
+            columns=["MeanVal"]
+        )
+
+        if not pivot_df.empty:
+          fig_heatmap = go.Figure(
+              data=go.Heatmap(
+                  z=pivot_df.values,
+                  x=[str(y) for y in pivot_df.columns],
+                  y=pivot_df.index.tolist(),
+                  colorscale="YlGnBu",
+                  text=[
+                      [f"{val:.1f}" if pd.notnull(val) else "" for val in row]
+                      for row in pivot_df.values
+                  ],
+                  texttemplate="%{text}",
+                  colorbar=dict(title="Value"),
+              )
+          )
+
+          fig_heatmap.add_shape(
+              type="line",
+              x0=0,
+              x1=1,
+              y0=4.5,
+              y1=4.5,
+              xref="paper",
+              yref="y",
+              line=dict(color="#FF5252", width=2, dash="dash"),
+          )
+          fig_heatmap.add_shape(
+              type="line",
+              x0=0,
+              x1=1,
+              y0=9.5,
+              y1=9.5,
+              xref="paper",
+              yref="y",
+              line=dict(color="#FF5252", width=2, dash="dash"),
+          )
+
+          fig_heatmap.update_layout(
+              height=420,
+              margin={"r": 0, "t": 10, "l": 0, "b": 10},
+              xaxis_title="Year",
+              yaxis_title="Country",
+              template="plotly_dark",
+              paper_bgcolor="rgba(0,0,0,0)",
+              plot_bgcolor="rgba(0,0,0,0)",
+              yaxis=dict(autorange="reversed"),
+          )
+          st.plotly_chart(
+              fig_heatmap, use_container_width=True, config={"displayModeBar": False}
+          )
+
+
+    # Invoke the unified background animation loop
+    render_unified_dashboard()

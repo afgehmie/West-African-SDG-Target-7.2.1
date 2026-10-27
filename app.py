@@ -12,12 +12,11 @@ st.set_page_config(
     layout="wide",
 )
 
-# Professional Styling & Presentation Polish for Dark Theme
 st.markdown(
     """
     <style>
     .main .block-container { padding-top: 1.2rem; padding-bottom: 1.2rem; }
-    h3 { font-size: 1.35rem !important; font-weight: 700 !important; margin-bottom: 0.1rem !important; color: #FFFFFF !important; }
+    h3 { font-size: 1.35rem !important; font-weight: 700 !important; margin-bottom: 0.1rem !important; }
     </style>
 """,
     unsafe_allow_html=True,
@@ -147,9 +146,17 @@ else:
       st.session_state.current_year_idx = available_years.index(selected_year)
 
 
-    # Wrapped in @st.fragment for smooth, flicker-free auto-play updates
-    @st.fragment
+    # True non-blocking background ticker handling animation without full page reruns
+    run_interval = playback_speed if st.session_state.is_playing else None
+
+
+    @st.fragment(run_every=run_interval)
     def render_animated_dashboard():
+      if st.session_state.is_playing:
+        st.session_state.current_year_idx = (
+            st.session_state.current_year_idx + 1
+        ) % len(available_years)
+
       curr_year = available_years[st.session_state.current_year_idx]
 
       sns_cmap = sns.color_palette("YlGnBu", as_cmap=True)
@@ -231,7 +238,7 @@ else:
             projection_scale=3.5,
             visible=False,
             showcountries=True,
-            countrycolor="#444444",
+            countrycolor="#666666",
             countrywidth=1.0,
             bgcolor="rgba(0,0,0,0)",
         )
@@ -240,8 +247,9 @@ else:
             margin={"r": 0, "t": 10, "l": 0, "b": 0},
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
+            font=dict(color="inherit"),
         )
-        st.plotly_chart(fig_map, use_container_width=True)
+        st.plotly_chart(fig_map, use_container_width=True, config={"displayModeBar": False})
 
       with col_bar:
         st.markdown(f"### 📊 2. Country Rankings — Year: {curr_year}")
@@ -292,8 +300,9 @@ else:
             xaxis={"title": f"{selected_series} ({curr_year})"},
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
+            font=dict(color="inherit"),
         )
-        st.plotly_chart(fig_bar, use_container_width=True)
+        st.plotly_chart(fig_bar, use_container_width=True, config={"displayModeBar": False})
 
       st.markdown("---")
 
@@ -307,7 +316,6 @@ else:
             df_filtered.groupby("Year")["Value"].mean().reset_index()
         )
 
-        # High-visibility Cyan Dotted Trendline for Dark Background
         fig_trend = px.line(
             regional_trend,
             x="Year",
@@ -320,7 +328,6 @@ else:
             line_color="#00E5FF", line_width=3.5, line_dash="dot", marker_size=10
         )
 
-        # Bigger bright red movement point showing year-on-year movement synchronously
         curr_val_row = regional_trend[regional_trend["Year"] == curr_year]
         if not curr_val_row.empty:
           fig_trend.add_trace(
@@ -342,8 +349,9 @@ else:
             xaxis=dict(tickmode="linear", dtick=1),
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
+            font=dict(color="inherit"),
         )
-        st.plotly_chart(fig_trend, use_container_width=True)
+        st.plotly_chart(fig_trend, use_container_width=True, config={"displayModeBar": False})
 
       with col_heat:
         st.markdown(f"### 📉 4. Transition Matrix Heatmap — Year: {curr_year}")
@@ -355,14 +363,12 @@ else:
             index="geoAreaName", columns="Year", values="Value"
         )
 
-        # Sort descending so highest performance sits cleanly at the top
         pivot_df["MeanVal"] = pivot_df.mean(axis=1)
         pivot_df = pivot_df.sort_values(by="MeanVal", ascending=False).drop(
             columns=["MeanVal"]
         )
 
         if not pivot_df.empty:
-          # Using go.Heatmap with explicit orientation to lock country ordering and line placement
           fig_heatmap = go.Figure(
               data=go.Heatmap(
                   z=pivot_df.values,
@@ -378,7 +384,6 @@ else:
               )
           )
 
-          # 3-tier performance group dividing lines precisely positioned between tiers
           fig_heatmap.add_shape(
               type="line",
               x0=0,
@@ -409,17 +414,10 @@ else:
               paper_bgcolor="rgba(0,0,0,0)",
               plot_bgcolor="rgba(0,0,0,0)",
               yaxis=dict(autorange="reversed"),
+              font=dict(color="inherit"),
           )
-          st.plotly_chart(fig_heatmap, use_container_width=True)
-
-      # Automatic playback loop advancing timeline smoothly
-      if st.session_state.is_playing:
-        time.sleep(playback_speed)
-        st.session_state.current_year_idx = (
-            st.session_state.current_year_idx + 1
-        ) % len(available_years)
-        st.rerun()
+          st.plotly_chart(fig_heatmap, use_container_width=True, config={"displayModeBar": False})
 
 
-    # Invoke the animated fragment block
+    # Invoke the fragment update loop
     render_animated_dashboard()

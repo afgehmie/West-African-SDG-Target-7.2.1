@@ -348,7 +348,6 @@ else:
       with col_heat:
         st.markdown(f"### 📉 4. Transition Matrix Heatmap — Year: {curr_year}")
 
-        # Strictly filter to the 15 ECOWAS countries to keep row count exactly at 15
         df_filtered_ecowas = df_filtered[
             df_filtered["geoAreaName"].isin(all_countries)
         ]
@@ -356,9 +355,9 @@ else:
             index="geoAreaName", columns="Year", values="Value"
         )
 
-        # Sort transition matrix: highest numbers at the TOP
+        # Sort ascending so highest values appear at the TOP when plotted bottom-up by Plotly
         pivot_df["MeanVal"] = pivot_df.mean(axis=1)
-        pivot_df = pivot_df.sort_values(by="MeanVal", ascending=False).drop(
+        pivot_df = pivot_df.sort_values(by="MeanVal", ascending=True).drop(
             columns=["MeanVal"]
         )
 
@@ -373,7 +372,7 @@ else:
               template="plotly_dark",
           )
 
-          # 3-tier performance group dividing lines correctly aligned to 15 countries
+          # 3-tier performance group dividing lines perfectly aligned top-down
           fig_heatmap.add_shape(
               type="line",
               x0=0,

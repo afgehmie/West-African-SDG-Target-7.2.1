@@ -347,7 +347,12 @@ else:
 
       with col_heat:
         st.markdown(f"### 📉 4. Transition Matrix Heatmap — Year: {curr_year}")
-        pivot_df = df_filtered.pivot_table(
+
+        # Strictly filter to the 15 ECOWAS countries to keep row count exactly at 15
+        df_filtered_ecowas = df_filtered[
+            df_filtered["geoAreaName"].isin(all_countries)
+        ]
+        pivot_df = df_filtered_ecowas.pivot_table(
             index="geoAreaName", columns="Year", values="Value"
         )
 
@@ -368,7 +373,7 @@ else:
               template="plotly_dark",
           )
 
-          # Restored 3-tier performance group dividing lines on the Heatmap (after every 5 countries)
+          # 3-tier performance group dividing lines correctly aligned to 15 countries
           fig_heatmap.add_shape(
               type="line",
               x0=0,

@@ -12,12 +12,12 @@ st.set_page_config(
     layout="wide",
 )
 
-# Professional Styling & Presentation Polish
+# Professional Styling & Presentation Polish for Dark Theme
 st.markdown(
     """
     <style>
     .main .block-container { padding-top: 1.2rem; padding-bottom: 1.2rem; }
-    h3 { font-size: 1.35rem !important; font-weight: 700 !important; margin-bottom: 0.1rem !important; }
+    h3 { font-size: 1.35rem !important; font-weight: 700 !important; margin-bottom: 0.1rem !important; color: #FFFFFF !important; }
     </style>
 """,
     unsafe_allow_html=True,
@@ -68,6 +68,7 @@ else:
   df_melted = df_melted.rename(
       columns={"Country": "geoAreaName", "Type": "seriesDescription"}
   )
+  df_melted["geoAreaName"] = df_melted["geoAreaName"].astype(str).str.strip()
   df_melted["seriesDescription"] = df_melted["seriesDescription"].str.strip()
 
   all_countries = [
@@ -146,7 +147,7 @@ else:
       st.session_state.current_year_idx = available_years.index(selected_year)
 
 
-    # Wrapped in @st.fragment for smooth, flicker-free auto-play updates without white page fades
+    # Wrapped in @st.fragment for smooth, flicker-free auto-play updates
     @st.fragment
     def render_animated_dashboard():
       curr_year = available_years[st.session_state.current_year_idx]
@@ -223,15 +224,16 @@ else:
             ],
             scope="africa",
             labels={"DisplayValue": selected_series},
+            template="plotly_dark",
         )
-        # Enlarged map bounds with center adjusted so Gambia and Cabo Verde are 100% visible
         fig_map.update_geos(
             center=dict(lat=10.5, lon=-6.5),
             projection_scale=3.5,
             visible=False,
             showcountries=True,
-            countrycolor="#B0B0B0",
+            countrycolor="#444444",
             countrywidth=1.0,
+            bgcolor="rgba(0,0,0,0)",
         )
         fig_map.update_layout(
             height=440,
@@ -252,6 +254,7 @@ else:
             color_continuous_scale=custom_color_scale,
             text="TextLabel",
             labels={"Value": selected_series, "geoAreaName": "Country"},
+            template="plotly_dark",
         )
         fig_bar.update_traces(textposition="outside")
 
@@ -264,7 +267,7 @@ else:
             y1=4.5,
             xref="paper",
             yref="y",
-            line=dict(color="red", width=2, dash="dash"),
+            line=dict(color="#FF5252", width=2, dash="dash"),
         )
         fig_bar.add_shape(
             type="line",
@@ -274,7 +277,7 @@ else:
             y1=9.5,
             xref="paper",
             yref="y",
-            line=dict(color="red", width=2, dash="dash"),
+            line=dict(color="#FF5252", width=2, dash="dash"),
         )
 
         fig_bar.update_layout(
@@ -287,6 +290,8 @@ else:
                 "title": "",
             },
             xaxis={"title": f"{selected_series} ({curr_year})"},
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
         )
         st.plotly_chart(fig_bar, use_container_width=True)
 
@@ -302,19 +307,20 @@ else:
             df_filtered.groupby("Year")["Value"].mean().reset_index()
         )
 
-        # Dotted trendline marked at every year
+        # High-visibility Cyan Dotted Trendline for Dark Background
         fig_trend = px.line(
             regional_trend,
             x="Year",
             y="Value",
             markers=True,
             labels={"Value": "Regional Mean", "Year": "Year"},
+            template="plotly_dark",
         )
         fig_trend.update_traces(
-            line_color="#1B4F72", line_width=3, line_dash="dot", marker_size=10
+            line_color="#00E5FF", line_width=3.5, line_dash="dot", marker_size=10
         )
 
-        # Bigger red movement point showing year-on-year movement synchronously
+        # Bigger bright red movement point showing year-on-year movement synchronously
         curr_val_row = regional_trend[regional_trend["Year"] == curr_year]
         if not curr_val_row.empty:
           fig_trend.add_trace(
@@ -322,7 +328,7 @@ else:
                   x=curr_val_row["Year"],
                   y=curr_val_row["Value"],
                   mode="markers+text",
-                  marker=dict(color="red", size=18, symbol="circle"),
+                  marker=dict(color="#FF1744", size=18, symbol="circle"),
                   text=[f"{curr_val_row['Value'].values[0]:.2f}"],
                   textposition="top center",
                   name=str(curr_year),
@@ -334,6 +340,8 @@ else:
             margin={"r": 0, "t": 10, "l": 0, "b": 0},
             showlegend=False,
             xaxis=dict(tickmode="linear", dtick=1),
+            paper_bgcolor="rgba(0,0,0,0)",
+            plot_bgcolor="rgba(0,0,0,0)",
         )
         st.plotly_chart(fig_trend, use_container_width=True)
 
@@ -357,6 +365,7 @@ else:
               y=pivot_df.index,
               color_continuous_scale=custom_color_scale,
               text_auto=".1f",
+              template="plotly_dark",
           )
 
           # 3 Group Dividing Lines on Heatmap (after every 5 countries)
@@ -368,7 +377,7 @@ else:
               y1=4.5,
               xref="paper",
               yref="y",
-              line=dict(color="red", width=2, dash="dash"),
+              line=dict(color="#FF5252", width=2, dash="dash"),
           )
           fig_heatmap.add_shape(
               type="line",
@@ -378,7 +387,7 @@ else:
               y1=9.5,
               xref="paper",
               yref="y",
-              line=dict(color="red", width=2, dash="dash"),
+              line=dict(color="#FF5252", width=2, dash="dash"),
           )
 
           fig_heatmap.update_layout(
@@ -387,6 +396,8 @@ else:
               xaxis_title="Year",
               yaxis_title="Country",
               xaxis=dict(tickmode="linear", dtick=1),
+              paper_bgcolor="rgba(0,0,0,0)",
+              plot_bgcolor="rgba(0,0,0,0)",
           )
           st.plotly_chart(fig_heatmap, use_container_width=True)
 

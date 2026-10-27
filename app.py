@@ -148,7 +148,6 @@ else:
     if selected_year != available_years[st.session_state.current_year_idx]:
       st.session_state.current_year_idx = available_years.index(selected_year)
 
-    # Background ticker for infinite smooth playback without full-page reloads
     run_interval = playback_speed if st.session_state.is_playing else None
 
 
@@ -214,7 +213,7 @@ else:
       )
       st.markdown("---")
 
-      # --- TOP ROW: MAP & COUNTRY RANKINGS (Larger size, side-by-side) ---
+      # --- TOP ROW: MAP & COUNTRY RANKINGS ---
       col_map, col_bar = st.columns([1.1, 1.0])
 
       with col_map:
@@ -255,7 +254,7 @@ else:
             fig_map,
             use_container_width=True,
             config={"displayModeBar": False},
-            key="map_chart",
+            key=f"map_{curr_year}",
         )
 
       with col_bar:
@@ -273,7 +272,7 @@ else:
         )
         fig_bar.update_traces(textposition="outside")
 
-        # 3 Performance Group Dividers (after every 5 countries)
+        # 3 Performance Group Dividers
         fig_bar.add_shape(
             type="line",
             x0=0,
@@ -313,7 +312,7 @@ else:
             fig_bar,
             use_container_width=True,
             config={"displayModeBar": False},
-            key="bar_chart",
+            key=f"bar_{curr_year}",
         )
 
       st.markdown("---")
@@ -368,7 +367,7 @@ else:
             fig_trend,
             use_container_width=True,
             config={"displayModeBar": False},
-            key="trend_chart",
+            key=f"trend_{curr_year}",
         )
 
       with col_heat:
@@ -438,9 +437,8 @@ else:
               fig_heatmap,
               use_container_width=True,
               config={"displayModeBar": False},
-              key="heat_chart",
+              key=f"heat_{curr_year}",
           )
 
 
-    # Invoke the unified background animation loop
     render_unified_dashboard()

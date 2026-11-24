@@ -34,16 +34,11 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Main Title & Presentation Subtitle
+# Main Title
 st.markdown(
     '<div class="main-title">Paradox of Progress: An Analysis of West'
     " Africa’s Progress Towards SDG Target 7.2 Using Indicator 7.2.1 (2015 -"
     " 2024)</div>",
-    unsafe_allow_html=True,
-)
-st.markdown(
-    '<div class="sub-caption">KDI School, Language of Public Policy Management,'
-    " Final Presentation</div>",
     unsafe_allow_html=True,
 )
 
@@ -128,6 +123,14 @@ else:
   all_types = df_melted["seriesDescription"].unique().tolist()
   selected_series = st.sidebar.selectbox(
       "Select Data Category / Indicator:", options=all_types, index=0
+  )
+
+  # Dynamic Subtitle reflecting selected indicator
+  st.markdown(
+      f'<div class="sub-caption">KDI School, Language of Public Policy'
+      f" Management, Final Presentation  |  <strong>Indicator:"
+      f" {selected_series}</strong></div>",
+      unsafe_allow_html=True,
   )
 
   df_filtered = df_melted[

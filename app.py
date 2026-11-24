@@ -28,17 +28,22 @@ st.markdown(
         margin-top: 0 !important;
         margin-bottom: 0.8rem !important;
     }
-    h3 { font-size: 1.25rem !important; font-weight: 700 !important; margin-bottom: 0.1rem !important; }
+    h3 { font-size: 1.18rem !important; font-weight: 700 !important; margin-bottom: 0.1rem !important; }
     </style>
 """,
     unsafe_allow_html=True,
 )
 
-# Main Title
+# Main Title & Presentation Subtitle
 st.markdown(
     '<div class="main-title">Paradox of Progress: An Analysis of West'
     " Africa’s Progress Towards SDG Target 7.2 Using Indicator 7.2.1 (2015 -"
     " 2024)</div>",
+    unsafe_allow_html=True,
+)
+st.markdown(
+    '<div class="sub-caption">KDI School, Language of Public Policy Management,'
+    " Final Presentation</div>",
     unsafe_allow_html=True,
 )
 
@@ -123,14 +128,6 @@ else:
   all_types = df_melted["seriesDescription"].unique().tolist()
   selected_series = st.sidebar.selectbox(
       "Select Data Category / Indicator:", options=all_types, index=0
-  )
-
-  # Dynamic Subtitle reflecting selected indicator
-  st.markdown(
-      f'<div class="sub-caption">KDI School, Language of Public Policy'
-      f" Management, Final Presentation  |  <strong>Indicator:"
-      f" {selected_series}</strong></div>",
-      unsafe_allow_html=True,
   )
 
   df_filtered = df_melted[
@@ -218,7 +215,10 @@ else:
       col_map, col_bar = st.columns([1.1, 1.0])
 
       with col_map:
-        st.markdown(f"### 🗺️ 1. West Africa Regional Map — Year: {curr_year}")
+        st.markdown(
+            f"### 🗺️ 1. West Africa Regional Map ({selected_series}) — Year:"
+            f" {curr_year}"
+        )
         fig_map = px.choropleth(
             df_year_full,
             locations="ISO3",
@@ -255,7 +255,10 @@ else:
         )
 
       with col_bar:
-        st.markdown(f"### 📊 2. Country Rankings — Year: {curr_year}")
+        st.markdown(
+            f"### 📊 2. Country Rankings ({selected_series}) — Year:"
+            f" {curr_year}"
+        )
         fig_bar = px.bar(
             df_year_sorted,
             x="Value",
@@ -321,7 +324,8 @@ else:
 
       with col_trend:
         st.markdown(
-            f"### 📈 3. Regional Average Trajectory — Year: {curr_year}"
+            f"### 📈 3. Regional Average Trajectory ({selected_series}) —"
+            f" Year: {curr_year}"
         )
         regional_trend = (
             df_filtered.groupby("Year")["Value"].mean().reset_index()
@@ -370,7 +374,10 @@ else:
         )
 
       with col_heat:
-        st.markdown(f"### 📉 4. Transition Matrix Heatmap — Year: {curr_year}")
+        st.markdown(
+            f"### 📉 4. Transition Matrix Heatmap ({selected_series}) — Year:"
+            f" {curr_year}"
+        )
 
         df_filtered_ecowas = df_filtered[
             df_filtered["geoAreaName"].isin(all_countries)

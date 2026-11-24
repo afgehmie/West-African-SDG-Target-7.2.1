@@ -1,4 +1,3 @@
-import time
 import matplotlib.colors as mcolors
 import pandas as pd
 import plotly.express as px
@@ -16,18 +15,38 @@ st.markdown(
     """
     <style>
     .main .block-container { padding-top: 1.0rem; padding-bottom: 1.0rem; }
+    .main-title {
+        font-size: clamp(1.05rem, 1.85vw, 1.75rem) !important;
+        font-weight: 700 !important;
+        line-height: 1.2 !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        margin-bottom: 0.25rem !important;
+    }
+    .sub-caption {
+        font-size: 0.98rem !important;
+        opacity: 0.85;
+        margin-top: 0 !important;
+        margin-bottom: 0.8rem !important;
+    }
     h3 { font-size: 1.25rem !important; font-weight: 700 !important; margin-bottom: 0.1rem !important; }
     </style>
 """,
     unsafe_allow_html=True,
 )
 
-# Main Title
-st.markdown("### An Evaluation of SDG Indicator 7.2.1 in West Africa (2015 - 2024)")
+# Main Title & Presentation Subtitle
 st.markdown(
-    "Interactive regional dashboard tracking **TFEC (PJ)**, **Total"
-    " Renewables**, **Modern Renewables**, and **Traditional Biomass** across all"
-    " 15 ECOWAS Member States."
+    '<div class="main-title">Paradox of Progress: An Analysis of West'
+    " Africa’s Progress Towards SDG Target 7.2 Using Indicator 7.2.1 (2015 -"
+    " 2024)</div>",
+    unsafe_allow_html=True,
+)
+st.markdown(
+    '<div class="sub-caption">KDI School, Language of Public Policy Management,'
+    " Final Presentation</div>",
+    unsafe_allow_html=True,
 )
 
 
@@ -167,6 +186,15 @@ else:
           [1.0, mcolors.to_hex(sns_cmap(0.95))],
       ]
 
+      valid_series_vals = df_filtered["Value"].dropna()
+      color_min = 0.0
+      color_max = (
+          float(valid_series_vals.max())
+          if not valid_series_vals.empty
+          else 100.0
+      )
+      shared_color_range = [color_min, color_max]
+
       df_year_raw = df_filtered[df_filtered["Year"] == curr_year]
       df_year_full = pd.DataFrame(
           {"geoAreaName": all_countries, "Year": curr_year}
@@ -175,7 +203,7 @@ else:
           df_year_raw[["geoAreaName", "Value"]], on="geoAreaName", how="left"
       )
       df_year_full["ISO3"] = df_year_full["geoAreaName"].map(iso_mapping)
-      df_year_full["DisplayValue"] = df_year_full["Value"].fillna(-1)
+      df_year_full["DisplayValue"] = df_year_full["Value"].fillna(color_min)
       df_year_full["TextLabel"] = df_year_full["Value"].apply(
           lambda x: f"{x:.1f}" if pd.notnull(x) else "N/A"
       )
@@ -183,37 +211,9 @@ else:
           by="Value", ascending=True, na_position="first"
       )
 
-      valid_vals = df_year_raw["Value"].dropna()
-      regional_avg = valid_vals.mean() if not valid_vals.empty else 0.0
-
-      prev_year = curr_year - 1
-      df_prev_raw = df_filtered[df_filtered["Year"] == prev_year]
-      prev_valid = df_prev_raw["Value"].dropna()
-      prev_avg = prev_valid.mean() if not prev_valid.empty else regional_avg
-      delta_avg = regional_avg - prev_avg
-
-      st.markdown("---")
-      c1, c2, c3 = st.columns(3)
-      c1.metric(
-          label=f"🌍 Regional Mean ({curr_year})",
-          value=f"{regional_avg:.2f}",
-          delta=f"{delta_avg:+.2f} vs {prev_year}"
-          if prev_year in available_years
-          else "Baseline",
-      )
-      c2.metric(
-          label="📊 Active Indicator",
-          value=selected_series,
-          delta=f"{len(valid_vals)} / {len(all_countries)} Reporting",
-      )
-      c3.metric(
-          label="📅 Active Timeline",
-          value=f"Year: {curr_year}",
-          delta="Auto-Playing 🔄" if st.session_state.is_playing else "Paused ⏸️",
-      )
       st.markdown("---")
 
-      # --- TOP ROW: MAP & COUNTRY RANKINGS ---
+      # --- TOP ROW: MAP & COUNTRY RANKINGS (Symmetric Color Scale) ---
       col_map, col_bar = st.columns([1.1, 1.0])
 
       with col_map:
@@ -224,12 +224,7 @@ else:
             color="DisplayValue",
             hover_name="geoAreaName",
             color_continuous_scale=custom_color_scale,
-            range_color=[
-                0,
-                df_filtered["Value"].max()
-                if not df_filtered["Value"].dropna().empty
-                else 100,
-            ],
+            range_color=shared_color_range,
             scope="africa",
             labels={"DisplayValue": selected_series},
             template="plotly_dark",
@@ -248,6 +243,7 @@ else:
             margin={"r": 0, "t": 10, "l": 0, "b": 0},
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
+            coloraxis=dict(cmin=color_min, cmax=color_max),
             uirevision="static",
         )
         st.plotly_chart(
@@ -266,13 +262,14 @@ else:
             orientation="h",
             color="DisplayValue",
             color_continuous_scale=custom_color_scale,
+            range_color=shared_color_range,
             text="TextLabel",
             labels={"Value": selected_series, "geoAreaName": "Country"},
             template="plotly_dark",
         )
         fig_bar.update_traces(textposition="outside")
 
-        # 3 Performance Group Dividers
+        # 3 Performance Group Dividers (after every 5 countries)
         fig_bar.add_shape(
             type="line",
             x0=0,
@@ -306,6 +303,7 @@ else:
             xaxis={"title": f"{selected_series} ({curr_year})"},
             paper_bgcolor="rgba(0,0,0,0)",
             plot_bgcolor="rgba(0,0,0,0)",
+            coloraxis=dict(cmin=color_min, cmax=color_max),
             uirevision="static",
         )
         st.plotly_chart(

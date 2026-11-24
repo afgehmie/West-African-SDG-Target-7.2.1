@@ -16,12 +16,10 @@ st.markdown(
     <style>
     .main .block-container { padding-top: 1.0rem; padding-bottom: 1.0rem; }
     .main-title {
-        font-size: clamp(1.05rem, 1.85vw, 1.75rem) !important;
+        font-size: clamp(0.95rem, 1.5vw, 1.42rem) !important;
         font-weight: 700 !important;
-        line-height: 1.2 !important;
+        line-height: 1.25 !important;
         white-space: nowrap !important;
-        overflow: hidden !important;
-        text-overflow: ellipsis !important;
         margin-bottom: 0.25rem !important;
     }
     .sub-caption {
@@ -250,7 +248,7 @@ else:
             fig_map,
             use_container_width=True,
             config={"displayModeBar": False},
-            key=f"map_{curr_year}",
+            key="map_chart",
         )
 
       with col_bar:
@@ -310,7 +308,7 @@ else:
             fig_bar,
             use_container_width=True,
             config={"displayModeBar": False},
-            key=f"bar_{curr_year}",
+            key="bar_chart",
         )
 
       st.markdown("---")
@@ -365,7 +363,7 @@ else:
             fig_trend,
             use_container_width=True,
             config={"displayModeBar": False},
-            key=f"trend_{curr_year}",
+            key="trend_chart",
         )
 
       with col_heat:
@@ -435,7 +433,7 @@ else:
               fig_heatmap,
               use_container_width=True,
               config={"displayModeBar": False},
-              key=f"heat_{curr_year}",
+              key="heat_chart",
           )
 
 
